@@ -1,0 +1,247 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 750" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070c16"/>
+      <stop offset="40%" stop-color="#0b1626"/>
+      <stop offset="100%" stop-color="#12243d"/>
+    </linearGradient>
+    <linearGradient id="hairGrad" x1="0%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#802e38"/>
+      <stop offset="50%" stop-color="#5a1d26"/>
+      <stop offset="100%" stop-color="#3b1118"/>
+    </linearGradient>
+    <linearGradient id="hairHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#b64858"/>
+      <stop offset="100%" stop-color="#802e38"/>
+    </linearGradient>
+    <linearGradient id="skinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fdf4ee"/>
+      <stop offset="60%" stop-color="#f4e0d4"/>
+      <stop offset="100%" stop-color="#e2c2b3"/>
+    </linearGradient>
+    <linearGradient id="skinShadow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d9af9f"/>
+      <stop offset="100%" stop-color="#bc8f7e"/>
+    </linearGradient>
+    <linearGradient id="iceFlow" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3895c4" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#72c0e6" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#d4f0ff" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="jerseyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111c2e"/>
+      <stop offset="50%" stop-color="#0b1320"/>
+      <stop offset="100%" stop-color="#060b13"/>
+    </linearGradient>
+    <linearGradient id="tealAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4aa3df"/>
+      <stop offset="100%" stop-color="#2bd1b8"/>
+    </linearGradient>
+
+    <!-- Tactical Grid Pattern -->
+    <pattern id="tacticalGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#25476a" stroke-width="0.5" stroke-opacity="0.35"/>
+      <circle cx="0" cy="0" r="1.5" fill="#4aa3df" fill-opacity="0.3"/>
+    </pattern>
+
+    <!-- Filters -->
+    <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="600" height="750" fill="url(#bgGrad)"/>
+  <rect width="600" height="750" fill="url(#tacticalGrid)"/>
+
+  <!-- Tactical Pitch Markings in Background -->
+  <g opacity="0.22" stroke="#4aa3df" stroke-width="1.2" fill="none">
+    <!-- Pitch boundary arc -->
+    <circle cx="300" cy="520" r="210" stroke-dasharray="6,4"/>
+    <circle cx="300" cy="520" r="110"/>
+    <line x1="60" y1="520" x2="540" y2="520"/>
+    <line x1="300" y1="260" x2="300" y2="720"/>
+    <polygon points="300,260 295,275 305,275" fill="#4aa3df"/>
+    <!-- Goal box outline -->
+    <rect x="180" y="580" width="240" height="150" stroke-dasharray="3,3"/>
+  </g>
+
+  <!-- Cold Flow Aura / Vector Lines behind Sae -->
+  <g opacity="0.45">
+    <path d="M 120 720 Q 200 480 260 380 T 360 210" fill="none" stroke="url(#tealAccent)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 480 720 Q 420 520 370 410 T 290 240" fill="none" stroke="#72c0e6" stroke-width="1.8" stroke-dasharray="8,6"/>
+    <circle cx="360" cy="210" r="4" fill="#2bd1b8"/>
+    <circle cx="260" cy="380" r="3" fill="#4aa3df"/>
+  </g>
+
+  <!-- HUD Coordinates / Character Telemetry -->
+  <g font-family="'JetBrains Mono', 'SF Mono', monospace" font-size="10" fill="#72c0e6" opacity="0.6">
+    <text x="35" y="50">SYS.LOC: MADRID / TOKYO</text>
+    <text x="35" y="66">POS: ATTACKING MIDFIELDER [CAM]</text>
+    <text x="35" y="82">STATUS: WORLD 11 NEXT-GEN</text>
+    <text x="565" y="50" text-anchor="end">JERSEY: #10</text>
+    <text x="565" y="66" text-anchor="end">VISION: CALCULATED</text>
+    <text x="565" y="82" text-anchor="end">RATE: 99.8% PASS ACC</text>
+  </g>
+
+  <!-- Bold Character Name Stamp (Vertical Background) -->
+  <g font-family="'Impact', 'Arial Black', sans-serif" font-weight="900" text-anchor="middle">
+    <text x="110" y="380" font-size="82" fill="#0f2238" letter-spacing="4" transform="rotate(-90, 110, 380)">ITOSHI</text>
+    <text x="520" y="380" font-size="82" fill="#0f2238" letter-spacing="4" transform="rotate(90, 520, 380)">SAE · 10</text>
+  </g>
+
+  <!-- SAE ITOSHI PORTRAIT (Stylized Anime Vector) -->
+  <g id="sae-character" transform="translate(0, 40)">
+    <!-- Back Hair silhouette -->
+    <path d="M 210 260 C 180 280 170 340 180 400 C 190 440 215 460 215 460 L 385 460 C 385 460 410 440 420 400 C 430 340 420 280 390 260 Z" fill="#2a0d13"/>
+
+    <!-- Shoulders & Torso / Real Madrid Youth / Japan U-20 Kit -->
+    <g id="torso">
+      <!-- Base Shirt Body -->
+      <path d="M 170 660 L 195 480 L 250 450 L 350 450 L 405 480 L 430 660 Z" fill="url(#jerseyGrad)"/>
+
+      <!-- Collar & Neck Line -->
+      <path d="M 250 450 L 300 510 L 350 450 L 300 480 Z" fill="#0c1524"/>
+      <path d="M 285 485 L 300 515 L 315 485 Z" fill="#c4384e"/> <!-- Crimson inner accent -->
+
+      <!-- High collar lapels -->
+      <path d="M 235 440 L 265 490 L 250 495 L 220 450 Z" fill="#1b2a41"/>
+      <path d="M 365 440 L 335 490 L 350 495 L 380 450 Z" fill="#1b2a41"/>
+
+      <!-- Kit details / Cyan piping -->
+      <path d="M 205 500 L 215 660" stroke="#3895c4" stroke-width="2.5" opacity="0.7"/>
+      <path d="M 395 500 L 385 660" stroke="#3895c4" stroke-width="2.5" opacity="0.7"/>
+      <path d="M 250 540 L 350 540" stroke="#3895c4" stroke-width="1.2" stroke-dasharray="4,4" opacity="0.4"/>
+
+      <!-- Jersey Number 10 on Chest -->
+      <text x="300" y="605" font-family="'JetBrains Mono', monospace" font-size="52" font-weight="900" fill="#f0f7fc" text-anchor="middle" letter-spacing="-1" opacity="0.95">10</text>
+      <text x="300" y="630" font-family="'SF Pro Display', sans-serif" font-size="11" font-weight="700" fill="#72c0e6" text-anchor="middle" letter-spacing="5" opacity="0.8">RE AL · YOUTH</text>
+    </g>
+
+    <!-- Neck -->
+    <g id="neck">
+      <path d="M 265 390 L 265 470 L 335 470 L 335 390 Z" fill="url(#skinShadow)"/>
+      <path d="M 275 395 L 275 460 Q 300 475 325 460 L 325 395 Z" fill="url(#skinGrad)"/>
+      <!-- Adam's apple shadow -->
+      <path d="M 296 425 L 300 435 L 304 425 Z" fill="#b88978"/>
+    </g>
+
+    <!-- Face Contour (Sharp anime jawline) -->
+    <g id="head">
+      <path d="M 230 290 Q 220 360 250 405 Q 280 435 300 445 Q 320 435 350 405 Q 380 360 370 290 Z" fill="url(#skinGrad)"/>
+
+      <!-- Ear Left -->
+      <path d="M 226 330 C 218 340 218 365 228 375 C 232 360 232 345 226 330 Z" fill="#e8c7ba"/>
+      <!-- Ear Right -->
+      <path d="M 374 330 C 382 340 382 365 372 375 C 368 360 368 345 374 330 Z" fill="#e8c7ba"/>
+
+      <!-- Facial Features: Sae's Signature Expression (Cool, Composed, Slightly Bored, Long Lower Lashes) -->
+
+      <!-- Eyebrows (Sharp, angled down slightly, confident/intense) -->
+      <path d="M 245 325 Q 265 318 285 325" fill="none" stroke="#481820" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 355 325 Q 335 318 315 325" fill="none" stroke="#481820" stroke-width="3.5" stroke-linecap="round"/>
+
+      <!-- Left Eye -->
+      <g id="eye-left">
+        <!-- Upper Eyelid -->
+        <path d="M 248 338 Q 268 333 285 342" fill="none" stroke="#110709" stroke-width="3.2" stroke-linecap="round"/>
+        <!-- Iris (Teal-tinged cold eye with Metavision spark) -->
+        <ellipse cx="268" cy="345" rx="9" ry="8" fill="#1b4558"/>
+        <ellipse cx="268" cy="345" rx="6" ry="6" fill="#3895c4"/>
+        <circle cx="268" cy="345" r="3.2" fill="#091b26"/>
+        <circle cx="270" cy="343" r="1.8" fill="#ffffff"/> <!-- catchlight -->
+        <polygon points="268,341 270,345 268,349 266,345" fill="#a5d8f3" opacity="0.8"/> <!-- Metavision diamond pupil spark -->
+        <!-- Lower Eyelid -->
+        <path d="M 252 352 Q 268 355 282 348" fill="none" stroke="#1a0a0e" stroke-width="1.8"/>
+        <!-- Sae's Signature DISTINCTIVE Lower Eyelashes (3 defined spikes downward) -->
+        <line x1="258" y1="353" x2="255" y2="361" stroke="#110709" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="266" y1="355" x2="265" y2="364" stroke="#110709" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="274" y1="353" x2="276" y2="361" stroke="#110709" stroke-width="2.2" stroke-linecap="round"/>
+      </g>
+
+      <!-- Right Eye -->
+      <g id="eye-right">
+        <!-- Upper Eyelid -->
+        <path d="M 352 338 Q 332 333 315 342" fill="none" stroke="#110709" stroke-width="3.2" stroke-linecap="round"/>
+        <!-- Iris -->
+        <ellipse cx="332" cy="345" rx="9" ry="8" fill="#1b4558"/>
+        <ellipse cx="332" cy="345" rx="6" ry="6" fill="#3895c4"/>
+        <circle cx="332" cy="345" r="3.2" fill="#091b26"/>
+        <circle cx="330" cy="343" r="1.8" fill="#ffffff"/> <!-- catchlight -->
+        <polygon points="332,341 334,345 332,349 330,345" fill="#a5d8f3" opacity="0.8"/>
+        <!-- Lower Eyelid -->
+        <path d="M 348 352 Q 332 355 318 348" fill="none" stroke="#1a0a0e" stroke-width="1.8"/>
+        <!-- Lower Eyelashes -->
+        <line x1="342" y1="353" x2="345" y2="361" stroke="#110709" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="334" y1="355" x2="335" y2="364" stroke="#110709" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="326" y1="353" x2="324" y2="361" stroke="#110709" stroke-width="2.2" stroke-linecap="round"/>
+      </g>
+
+      <!-- Nose (Minimalist elegant anime nose) -->
+      <path d="M 298 355 L 296 385 L 302 388" fill="none" stroke="#c09384" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Mouth (Calm, neutral, slightly condescending line) -->
+      <path d="M 284 410 Q 300 412 316 410" fill="none" stroke="#481820" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M 294 419 Q 300 422 306 419" fill="none" stroke="#c09384" stroke-width="1.5" stroke-linecap="round"/>
+    </g>
+
+    <!-- Hair (Sae's Spiky Auburn/Reddish-Brown Layered Hair with bangs framing face) -->
+    <g id="hair-front">
+      <!-- Main hair crown and spikes -->
+      <path d="M 220 300
+               C 195 240 215 170 270 145
+               C 310 130 360 140 385 170
+               C 415 210 415 270 385 310
+               L 375 270 L 360 295 L 350 250 L 335 285 L 320 230 L 300 280 L 280 235 L 265 285 L 250 255 L 235 295 Z"
+            fill="url(#hairGrad)"/>
+
+      <!-- Top spikes & volume -->
+      <path d="M 240 170 L 230 115 L 265 145 Z" fill="url(#hairHighlight)"/>
+      <path d="M 265 135 L 285 85 L 305 130 Z" fill="url(#hairHighlight)"/>
+      <path d="M 305 125 L 335 90 L 340 135 Z" fill="url(#hairHighlight)"/>
+      <path d="M 345 140 L 380 120 L 370 165 Z" fill="url(#hairGrad)"/>
+      <path d="M 375 165 L 415 160 L 395 200 Z" fill="url(#hairGrad)"/>
+      <path d="M 395 205 L 430 220 L 390 245 Z" fill="url(#hairGrad)"/>
+
+      <!-- Left side spikes -->
+      <path d="M 230 180 L 185 190 L 215 220 Z" fill="url(#hairGrad)"/>
+      <path d="M 210 225 L 170 245 L 205 265 Z" fill="url(#hairGrad)"/>
+
+      <!-- Forehead bangs framing eyes -->
+      <!-- Center right bang -->
+      <path d="M 290 180 Q 305 240 312 295 Q 295 240 285 200 Z" fill="#6d232c"/>
+      <!-- Center left bang -->
+      <path d="M 275 185 Q 270 245 258 290 Q 262 235 270 195 Z" fill="#7a2833"/>
+      <!-- Far right bang -->
+      <path d="M 340 200 Q 360 260 365 315 Q 345 255 330 215 Z" fill="#501820"/>
+      <!-- Far left bang -->
+      <path d="M 245 210 Q 230 265 225 320 Q 240 265 250 220 Z" fill="#501820"/>
+
+      <!-- Hair Strand Highlights -->
+      <path d="M 270 145 Q 285 105 290 95" fill="none" stroke="#d66878" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
+      <path d="M 320 140 Q 330 105 335 98" fill="none" stroke="#d66878" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
+      <path d="M 245 160 Q 235 130 232 122" fill="none" stroke="#d66878" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/>
+    </g>
+  </g>
+
+  <!-- Foreground Graphical Frame Overlay (Handcrafted editorial style) -->
+  <g>
+    <!-- Border line -->
+    <rect x="20" y="20" width="560" height="710" fill="none" stroke="#25476a" stroke-width="1.5" stroke-opacity="0.8"/>
+    <!-- Corner brackets -->
+    <path d="M 20 50 L 20 20 L 50 20" fill="none" stroke="#72c0e6" stroke-width="3"/>
+    <path d="M 580 50 L 580 20 L 550 20" fill="none" stroke="#72c0e6" stroke-width="3"/>
+    <path d="M 20 690 L 20 720 L 50 720" fill="none" stroke="#72c0e6" stroke-width="3"/>
+    <path d="M 580 690 L 580 720 L 550 720" fill="none" stroke="#72c0e6" stroke-width="3"/>
+
+    <!-- Bottom Badge -->
+    <rect x="40" y="680" width="170" height="26" rx="4" fill="#08101c" stroke="#3895c4" stroke-width="1"/>
+    <text x="50" y="697" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="bold" fill="#a5d8f3" letter-spacing="1.5">SAE ITOSHI // 糸師 冴</text>
+
+    <!-- Crimson stamp in corner -->
+    <rect x="445" y="680" width="115" height="26" rx="4" fill="#9e2a3b"/>
+    <text x="502" y="697" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">GENIUS PLAYMAKER</text>
+  </g>
+</svg>

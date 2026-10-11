@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f2f0e8">
+    <meta name="description" content="An unofficial manga scrapbook dedicated to Sae Itoshi from Blue Lock.">
+    <title>SAE / 10 — A manga scrapbook</title>
+    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <script>
+      try {
+        const savedTheme = localStorage.getItem("sae-site-theme");
+        if (savedTheme === "night" || (savedTheme !== "day" && matchMedia("(prefers-color-scheme: dark)").matches)) {
+          document.documentElement.classList.add("night-mode");
+        }
+      } catch {
+        if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("night-mode");
+      }
+    </script>
+    <link rel="stylesheet" href="css/site.css">
+    <script src="js/site.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="#home" aria-label="Sae Itoshi, back to cover">
+        <span class="logo-plate" aria-hidden="true">冴</span>
+        <span class="wordmark-copy">BLUE LOCK <b> / </b> SCRAPBOOK <i>№ 10</i></span>
+      </a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span class="menu-icon" aria-hidden="true"></span><span class="sr-only">Toggle navigation</span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Main navigation">
+        <a href="#profile">DOSSIER</a>
+        <a href="#panels">CHAPTER 02</a>
+        <a href="#mixtape">SIDE B</a>
+        <a href="#guestbook">MARGIN NOTES</a>
+      </nav>
+      <button class="theme-toggle" type="button" aria-label="Switch to night mode" aria-pressed="false" title="Switch ink mode"><span aria-hidden="true">◐</span></button>
+    </header>
+
+    <main id="main">
+      <section class="cover-spread wrap" id="home" aria-labelledby="hero-title">
+        <div class="cover-kicker"><span>BLUE LOCK / CHARACTER FILE</span><span>ISSUE 010 <b>—</b> TOKYO / MADRID</span></div>
+        <div class="cover-grid">
+          <div class="cover-title panel-frame">
+            <span class="vertical-note">糸師 冴 / THE OLDER BROTHER</span>
+            <p class="chapter-label"><i></i> A STUDY IN PERFECT CONTROL</p>
+            <h1 id="hero-title">THE<br>WORLD<br><em>IS</em> MINE<br>TO <b>READ.</b></h1>
+            <p class="cover-deck">SAE ITOSHI<br>attacking midfielder / Japan U-20</p>
+            <a class="cover-link" href="#profile">OPEN THE DOSSIER <span aria-hidden="true">↘</span></a>
+            <span class="cover-sound" aria-hidden="true">…</span>
+            <span class="cover-panel-no">01 / 10</span>
+          </div>
+          <figure class="cover-image panel-frame">
+              <div class="cover-panel-backdrop" aria-hidden="true">
+                <span class="cover-panel-number">10</span>
+                <span class="cover-panel-sfx">ピッチを読む</span>
+              </div>
+              <img class="cover-cutout" src="assets/cutouts/sae-frontal-portrait.png" alt="Transparent black-and-white manga cutout of Sae Itoshi looking directly ahead" fetchpriority="high">
+              <span class="image-stamp">READER<br>NO. 0010</span>
+              <figcaption><span>THE PRODIGY RETURNS</span><span>01—A</span></figcaption>
+            </figure>
+          <aside class="cover-side panel-frame">
+            <span class="side-top">FIELD NOTE / 01</span>
+            <p>He doesn't look for an opening.</p>
+            <p class="side-ink">He decides where it will be.</p>
+            <span class="handwrite">simple, right?</span>
+            <span class="side-index">冴 <b>10</b></span>
+          </aside>
+        </div>
+        <div class="spread-footer"><span>AN UNOFFICIAL FAN-MADE CHARACTER ZINE</span><span>SCROLL TO TURN THE PAGE <b>↓</b></span></div>
+      </section>
+
+      <section class="profile-spread wrap page-section" id="profile" aria-labelledby="profile-title">
+        <div class="section-rubric"><span>CHAPTER 01</span><span>PLAYER DOSSIER <i> / </i> 解析</span></div>
+        <div class="profile-layout">
+          <figure class="profile-photo panel-frame">
+            <img src="assets/images/sae/stadium-profile.jpg" alt="Sae Itoshi in profile against a packed football stadium">
+            <figcaption><span>THE PITCH IS A MAP.</span><span>01—B</span></figcaption>
+          </figure>
+          <article class="dossier panel-frame">
+            <div class="dossier-heading"><span>PLAYER / 010</span><span>NEW GENERATION WORLD 11</span></div>
+            <h2 id="profile-title">糸師 <em>冴</em></h2>
+            <p class="roman-name">ITOSHI SAE <span>—</span> THE PLAYMAKER</p>
+            <div class="dossier-rule"></div>
+            <dl class="player-facts">
+              <div><dt>POSITION / 位置</dt><dd>Attacking midfielder</dd></div>
+              <div><dt>FOOT / 利き足</dt><dd>Left</dd></div>
+              <div><dt>NUMBER / 背番号</dt><dd class="number-value">10</dd></div>
+              <div><dt>VISION / 視野</dt><dd>One pass ahead</dd></div>
+            </dl>
+            <div class="ratings" aria-label="Player ratings">
+              <div><span>TECHNIQUE</span><i><b style="--score: 96%"></b></i><strong>96</strong></div>
+              <div><span>VISION</span><i><b style="--score: 99%"></b></i><strong>99</strong></div>
+              <div><span>FINESSE</span><i><b style="--score: 94%"></b></i><strong>94</strong></div>
+            </div>
+            <p class="dossier-footnote">* NOT A PLAYER CARD. JUST AN OBSESSION.</p>
+          </article>
+          <figure class="profile-inset panel-frame">
+            <img src="assets/images/sae/jersey-back.jpg" alt="Sae seen from behind in his number 10 jersey">
+            <figcaption><span>NAME ON THE BACK</span><span>10</span></figcaption>
+          </figure>
+          <div class="profile-caption panel-frame">
+            <span class="big-quote">“</span>
+            <p>Talent isn't a promise.<br><b>It's an expectation.</b></p>
+            <span class="caption-byline">NOTES FROM THE TOUCHLINE</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="profile-margin-note wrap" aria-label="Dossier field note">
+        <figure class="margin-photo panel-frame">
+          <img src="assets/images/sae/11cf7ab166a3d5eb45a2da4af2a7f77b.jpg" alt="Monochrome manga close-up of Sae Itoshi, cropped at an oblique angle" loading="lazy">
+          <figcaption><span>DETAIL / 01</span><span>THE QUIET READ</span></figcaption>
+        </figure>
+        <div class="margin-copy">
+          <span>TOUCHLINE NOTE / 01</span>
+          <p>A calm face. A decision already made. The rest of the pitch catches up.</p>
+        </div>
+      </aside>
+
+      <section class="interleaf-spread wrap page-section" aria-labelledby="interleaf-title">
+        <div class="section-rubric"><span>BETWEEN THE LINES</span><span>OBSERVATION LOG <i> / </i> 観察</span></div>
+        <div class="interleaf-layout">
+          <figure class="interleaf-detail panel-frame">
+            <img src="assets/images/sae/189625971c8f7e2c515a9948c563bbc3.jpg" alt="Close monochrome manga portrait emphasizing Sae's focused gaze" loading="lazy">
+            <figcaption><span>FIELD STUDY / 02</span><span>NO HESITATION</span></figcaption>
+          </figure>
+          <div class="interleaf-copy">
+            <p class="chapter-label"><i></i> A MOMENT BEFORE THE PASS</p>
+            <h2 id="interleaf-title">FIRST, HE<br><em>SEES IT.</em></h2>
+            <p>The opening isn't found by accident. He watches the shape of the field change, then plays into the space that is about to exist.</p>
+          </div>
+          <figure class="interleaf-eye panel-frame">
+            <img src="assets/images/sae/close-up-halftone.jpeg" alt="Halftone close-up of Sae's eyes framed by heavy ink" loading="lazy">
+            <figcaption><span>FOCUS / 10</span></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="chapter-spread wrap page-section" id="panels" aria-labelledby="panels-title">
+        <div class="section-rubric"><span>CHAPTER 02</span><span>THE DECISION <i> / </i> 判断</span></div>
+        <div class="chapter-heading">
+          <div>
+            <p class="chapter-label"><i></i> ONE PASS, ONE POINT OF VIEW</p>
+            <h2 id="panels-title">THE GAME<br><em>IN FRAGMENTS.</em></h2>
+          </div>
+          <p>Small moments. Exact angles.<br>One very particular point of view.</p>
+        </div>
+        <div class="chapter-layout">
+          <figure class="chapter-feature panel-frame">
+            <img src="assets/images/sae/panel-pass.jpg" alt="Sae reaching into a manga panel as if setting up a pass" loading="lazy">
+            <figcaption><span>01 / FIRST TOUCH</span><span>THE PASS IS ALREADY DECIDED.</span></figcaption>
+            <span class="panel-cut" aria-hidden="true">Ⅰ</span>
+          </figure>
+          <article class="chapter-copy">
+            <span class="chapter-index">10—02</span>
+            <h3>THE BALL<br>ARRIVES LATE.</h3>
+            <p>Not because the pass is slow. Because the decision was made before anyone else saw the lane.</p>
+            <p class="scrambled-copy" data-scramble-text>THE SPACE WAS HIS BEFORE THE BALL MOVED.</p>
+            <figure class="chapter-inset panel-frame">
+              <img src="assets/images/sae/1f7f36b48f299523ad6d3d7a2267b99b.jpg" alt="Angled monochrome portrait of Sae looking across the field" loading="lazy">
+              <figcaption><span>READ / REACT</span><span>02—A</span></figcaption>
+            </figure>
+          </article>
+        </div>
+        <a class="next-chapter" href="#vision">TURN THE PAGE / FIELD THEORY <span aria-hidden="true">↘</span></a>
+      </section>
+
+      <section class="vision-spread wrap page-section" id="vision" aria-labelledby="vision-title">
+        <div class="section-rubric"><span>CHAPTER 03</span><span>FIELD THEORY <i> / </i> 戦術</span></div>
+        <div class="vision-layout">
+          <div class="vision-copy">
+            <p class="chapter-label"><i></i> HOW HE SEES IT</p>
+            <h2 id="vision-title">THE SPACE<br>YOU <em>DON'T</em><br>SEE.</h2>
+            <p>Every movement changes the map. Sae reads the next few seconds like they're already printed on the page.</p>
+            <button class="quote-copy" type="button" data-copy-quote>COPY THE LINE <span aria-hidden="true">↗</span></button>
+            <span class="handwrite vision-note">no wasted motion</span>
+            <figure class="vision-fragment panel-frame">
+              <img src="assets/images/sae/panel-stare.jpg" alt="Halftone close-up of Sae looking straight ahead" loading="lazy">
+              <figcaption><span>THE NEXT MOVE</span></figcaption>
+            </figure>
+          </div>
+          <div class="tactics-panel panel-frame" role="img" aria-label="Original tactical diagram illustrating Sae's passing lanes">
+            <span class="tactics-label">FIELD / X–Y AXIS 03</span>
+            <div class="pitch-diagram">
+              <span class="player-dot player-one">10</span><span class="player-dot player-two"></span><span class="player-dot player-three"></span><span class="player-dot player-four"></span>
+              <svg viewBox="0 0 720 400" aria-hidden="true">
+                <defs><marker id="pass-arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="currentColor"/></marker></defs>
+                <path d="M126 294 C240 285 241 170 337 185 S487 100 621 77" marker-end="url(#pass-arrow)"/>
+                <path class="secondary-route" d="M337 185 C425 246 496 280 592 256" marker-end="url(#pass-arrow)"/>
+                <path class="ghost-route" d="M126 294 C192 160 255 112 337 185"/>
+                <circle class="target-ring" cx="621" cy="77" r="22"/><circle class="target-ring ring-small" cx="592" cy="256" r="13"/>
+              </svg>
+              <span class="route-label">THE THREAD</span>
+              <span class="route-coord">x 08.2 / y 14.6</span>
+            </div>
+            <span class="tactics-caption">A PASS IS A QUESTION. THE SPACE IS THE ANSWER.</span>
+          </div>
+        </div>
+        <aside class="vision-margin-note">
+          <p><span>FIELD NOTE / 03</span> He doesn't chase the opening. He makes the other eleven players draw it for him.</p>
+          <figure class="margin-photo panel-frame">
+            <img src="assets/images/sae/5b04d2edb6e390cf0f8314eee1436dde.jpg" alt="Monochrome manga portrait of Sae with a sharp, composed expression" loading="lazy">
+            <figcaption><span>CONTROL / 03</span></figcaption>
+          </figure>
+        </aside>
+      </section>
+
+      <section class="tempo-spread wrap page-section" id="tempo" aria-labelledby="tempo-title">
+        <div class="section-rubric"><span>CHAPTER 04</span><span>VELOCITY STUDY <i> / </i> 加速</span></div>
+        <div class="tempo-layout">
+          <figure class="tempo-feature panel-frame">
+            <img src="assets/images/sae/panel-sprint.jpg" alt="Sae leaning into a sprint with ink splashes trailing behind him" loading="lazy">
+            <figcaption><span>04 / ACCELERATION</span><span>10—10</span></figcaption>
+          </figure>
+          <div class="tempo-copy">
+            <p class="chapter-label"><i></i> THE MOMENT THE PAGE TILTS</p>
+            <h2 id="tempo-title">NO EXTRA<br><em>MOTION.</em></h2>
+            <p>Control isn't stillness. It's choosing exactly when to break it.</p>
+            <figure class="tempo-inset panel-frame">
+              <img src="assets/images/sae/68a0dc09755d9dc26f2d3ecc3bfa82e9.jpg" alt="Dynamic manga panel of Sae shifting into motion" loading="lazy">
+              <figcaption><span>STEP / 04</span></figcaption>
+            </figure>
+          </div>
+          <figure class="tempo-margin panel-frame">
+            <img src="assets/images/sae/panel-angle.jpg" alt="Sae leaning forward within a sharply angled manga frame" loading="lazy">
+            <figcaption><span>COMPOSURE / 10</span></figcaption>
+          </figure>
+          <figure class="tempo-still panel-frame">
+            <img src="assets/images/sae/7825e5b2e0c4266114c277df0aa54cb4.jpg" alt="Monochrome close-up portrait of Sae framed by speed lines" loading="lazy">
+            <figcaption><span>THE TURN</span></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="mixtape-spread wrap page-section" id="mixtape" aria-labelledby="mixtape-title">
+        <div class="section-rubric"><span>SIDE B</span><span>LISTENING NOTES <i> / </i> 再生</span></div>
+        <div class="mixtape-heading">
+          <h2 id="mixtape-title">AFTER THE<br><em>FINAL WHISTLE.</em></h2>
+          <figure class="mixtape-art panel-frame">
+            <img src="assets/images/sae/color-break.jpg" alt="Selective-color manga close-up of Sae's vivid eyes" loading="lazy">
+            <figcaption><span>COLOR BREAK</span></figcaption>
+          </figure>
+        </div>
+        <div class="mixtape-margin">
+          <figure class="mixtape-detail panel-frame">
+            <img src="assets/images/sae/7aa94707c5f6bf75497df8607b7bb189.jpg" alt="Monochrome manga portrait of Sae in profile" loading="lazy">
+            <figcaption><span>TRACK NOTE / 01</span></figcaption>
+          </figure>
+          <p>THE SOUND OF A QUIET WALK BACK TO THE CENTER CIRCLE.</p>
+        </div>
+        <div class="track-list">
+          <a class="track-row" href="https://open.spotify.com/search/As%20the%20World%20Caves%20In%20Matt%20Maltese" target="_blank" rel="noreferrer"><span class="track-number">01</span><span class="track-title">As the World Caves In <small>Matt Maltese</small></span><span class="track-note">cold, but not quite</span><span class="track-arrow">↗</span></a>
+          <a class="track-row" href="https://open.spotify.com/search/505%20Arctic%20Monkeys" target="_blank" rel="noreferrer"><span class="track-number">02</span><span class="track-title">505 <small>Arctic Monkeys</small></span><span class="track-note">the long way around</span><span class="track-arrow">↗</span></a>
+          <a class="track-row" href="https://open.spotify.com/search/Everything%20In%20Its%20Right%20Place%20Radiohead" target="_blank" rel="noreferrer"><span class="track-number">03</span><span class="track-title">Everything in Its Right Place <small>Radiohead</small></span><span class="track-note">the whole pitch at once</span><span class="track-arrow">↗</span></a>
+        </div>
+        <figure class="mixtape-after panel-frame">
+          <img src="assets/images/sae/80232d5d1f8e35005194328a45718feb.jpg" alt="Sae in a reflective manga close-up between plays" loading="lazy">
+          <figcaption><span>AFTER THE WHISTLE / 02</span><span>STILL THINKING.</span></figcaption>
+        </figure>
+        <p class="music-footnote">OPENS A SPOTIFY SEARCH IN A NEW TAB / NO EMBEDDED PLAYER</p>
+      </section>
+
+      <section class="guestbook-spread wrap page-section" id="guestbook" aria-labelledby="guestbook-title">
+        <div class="section-rubric"><span>BACK MATTER</span><span>MARGIN NOTES <i> / </i> 書き込み</span></div>
+        <aside class="backmatter-note">
+          <figure class="backmatter-rival panel-frame">
+            <img src="assets/images/sae/panel-rival.webp" alt="Close manga portrait of Sae beside another player" loading="lazy">
+            <figcaption><span>NO SMALL TALK</span></figcaption>
+          </figure>
+          <p>THE PAGE IS YOURS NOW. LEAVE A NOTE IN THE MARGIN.</p>
+          <figure class="backmatter-detail panel-frame">
+            <img src="assets/images/sae/83b7b7628e3a448b37351342fb6b2b79.jpg" alt="Distinct monochrome manga close-up of Sae's face" loading="lazy">
+            <figcaption><span>BACK MATTER / 08</span></figcaption>
+          </figure>
+        </aside>
+        <div class="guestbook-panel panel-frame">
+          <div class="guestbook-copy">
+            <span class="guestbook-number">08</span>
+            <p class="chapter-label"><i></i> ADD YOUR OWN PANEL</p>
+            <h2 id="guestbook-title">LEAVE A<br><em>NOTE.</em></h2>
+            <p>Favorite moment, best pass, one thought in the margin. Pin it here for your visit.</p>
+            <small>STAYS IN THIS BROWSER ONLY.</small>
+          </div>
+          <div class="guestbook-form-wrap">
+            <form class="guestbook-form" id="guestbook-form">
+              <label for="guest-name">NAME <span>OPTIONAL</span></label>
+              <input id="guest-name" name="name" maxlength="32" placeholder="A fellow observer" autocomplete="name">
+              <label for="guest-message">YOUR MARGIN NOTE</label>
+              <textarea id="guest-message" name="message" maxlength="240" rows="3" placeholder="Leave something thoughtful..." required></textarea>
+              <div class="form-bottom"><span id="character-count">0 / 240</span><button class="button button-dark" type="submit">PIN NOTE <span aria-hidden="true">↗</span></button></div>
+              <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+            </form>
+            <div class="guest-notes" id="guest-notes" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-top wrap"><a href="#home">TURN BACK TO COVER <span>↑</span></a><span>SAE ITOSHI / BLUE LOCK FAN SCRAPBOOK</span><span>FIN / 010</span></div>
+      <aside class="colophon-image wrap">
+        <p>ONE LAST LOOK BEFORE THE LIGHTS GO OUT.</p>
+        <figure class="panel-frame">
+          <img src="assets/images/sae/b39be7f36de7cb86a160398ba9d0963f.jpg" alt="Monochrome manga close-up of Sae's focused eyes" loading="lazy">
+          <figcaption><span>END FRAME / 09</span></figcaption>
+        </figure>
+        <figure class="panel-frame">
+          <img src="assets/images/sae/fd0c0e2d4535f1f3bf0499ea4e85ead9.jpg" alt="Full-length monochrome manga illustration of Sae in his football kit" loading="lazy">
+          <figcaption><span>NUMBER TEN / FIN</span></figcaption>
+        </figure>
+      </aside>
+      <div class="footer-bottom wrap">
+        <p>Independent, non-commercial fan site. Sae Itoshi and “Blue Lock” (ブルーロック) are the intellectual property of Muneyuki Kaneshiro, Yusuke Nomura, and Kodansha Ltd. Not affiliated with or endorsed by the creators or production committee.</p>
+        <span>DRAWN FROM THE MARGINS <b>✳</b></span>
+      </div>
+    </footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

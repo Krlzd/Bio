@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="pBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070c16"/>
+      <stop offset="100%" stop-color="#14263f"/>
+    </linearGradient>
+    <linearGradient id="pEdge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#72c0e6"/>
+      <stop offset="50%" stop-color="#4aa3df"/>
+      <stop offset="100%" stop-color="#2bd1b8"/>
+    </linearGradient>
+    <linearGradient id="pCrim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e05368"/>
+      <stop offset="100%" stop-color="#9e2a3b"/>
+    </linearGradient>
+    <radialGradient id="pCore" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="40%" stop-color="#a5d8f3" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#0a1322" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Outer Ring -->
+  <circle cx="128" cy="128" r="120" fill="url(#pBg)" stroke="url(#pEdge)" stroke-width="2"/>
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#25476a" stroke-width="1" stroke-dasharray="2,6"/>
+
+  <!-- Stylized Football Pentagon (Blue Lock emblem) -->
+  <g transform="translate(128,128)">
+    <!-- Outer pentagon -->
+    <polygon points="0,-95 90,-29 55,76 -55,76 -90,-29"
+             fill="none" stroke="url(#pEdge)" stroke-width="3.5" stroke-linejoin="round"/>
+    <!-- Inner pentagon -->
+    <polygon points="0,-60 57,-18 35,48 -35,48 -57,-18"
+             fill="url(#pBg)" stroke="url(#pEdge)" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Innermost pentagon -->
+    <polygon points="0,-30 28,-9 17,24 -17,24 -28,-9"
+             fill="none" stroke="url(#pCrim)" stroke-width="2.5" stroke-linejoin="round"/>
+    <!-- Core -->
+    <circle r="14" fill="url(#pCore)"/>
+    <polygon points="0,-12 11,-4 7,9 -7,9 -11,-4" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-opacity="0.9"/>
+    <circle r="3" fill="#ffffff"/>
+    <circle r="1" fill="#0a1322"/>
+  </g>
+
+  <!-- Branding text -->
+  <text x="128" y="230" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700"
+        fill="#72c0e6" text-anchor="middle" letter-spacing="3">BLUE LOCK</text>
+</svg>
