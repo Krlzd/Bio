@@ -225,6 +225,17 @@ function ProfileStudio() {
     };
     setProfile((current) => ({ ...current, sections: [...current.sections, section] }));
     setSelectedId(section.id);
+    window.requestAnimationFrame(() => document.getElementById("spotify-url")?.focus());
+  };
+
+  const resetToDefaults = () => {
+    if (!window.confirm("Reset the editor and this browser's local draft to the original default profile? This does not change your saved Supabase draft or published profile. You can save and publish the defaults separately.")) return;
+    const resetProfile = structuredClone(defaultProfile);
+    setProfile(resetProfile);
+    setSelectedId(resetProfile.sections[0]?.id ?? null);
+    setPreviewMode(resetProfile.theme.mode);
+    setAssetStatus("");
+    setCloudStatus("Editor reset to the original defaults locally. Save the draft and publish separately if you want these defaults online.");
   };
 
   const duplicateSection = () => {
@@ -425,7 +436,7 @@ function ProfileStudio() {
         <section className="auth-panel panel-frame" aria-labelledby="auth-heading">
           <a className="studio-wordmark" href={`${import.meta.env.BASE_URL}`} aria-label="Return to public preview">
             <span className="studio-logo" aria-hidden="true">冴</span>
-            <span>PROFILE STUDIO <b>/</b> SAE 10</span>
+            <span>PROFILE STUDIO <b>/</b> AJAX&apos;S BIO</span>
           </a>
           <p className="studio-kicker">PRIVATE EDITOR / AUTHENTICATED ACCESS</p>
           <h1 id="auth-heading">SIGN IN TO <em>EDIT.</em></h1>
@@ -468,7 +479,7 @@ function ProfileStudio() {
       <header className="studio-header">
         <a className="studio-wordmark" href={`${import.meta.env.BASE_URL}`} aria-label="Open public preview">
           <span className="studio-logo" aria-hidden="true">冴</span>
-          <span>PROFILE STUDIO <b>/</b> SAE 10</span>
+          <span>PROFILE STUDIO <b>/</b> AJAX&apos;S BIO</span>
         </a>
         <div className="studio-header-actions">
           <span className="signed-in-label">{session.user.email}</span>
@@ -497,6 +508,7 @@ function ProfileStudio() {
         </div>
         <div className="cloud-draft-actions">
           <button className="button button-outline" type="button" onClick={downloadLocalBackup}>DOWNLOAD LOCAL BACKUP</button>
+          <button className="button button-outline" type="button" disabled={cloudBusy} onClick={resetToDefaults}>RESET TO DEFAULTS</button>
           <button className="button button-outline" type="button" disabled={cloudBusy} onClick={reloadCloudDraft}>RELOAD CLOUD DRAFT</button>
           {cloudDraft && (
             <button className="button button-outline" type="button" disabled={cloudBusy} onClick={() => {
@@ -558,7 +570,7 @@ function ProfileStudio() {
             ))}
           </ol>
           <button className="button button-outline add-section" type="button" onClick={addSection}><span aria-hidden="true">＋</span> ADD A NOTE</button>
-          <button className="button button-outline add-section add-music-section" type="button" onClick={addMusicSection}><span aria-hidden="true">♫</span> ADD SPOTIFY MUSIC</button>
+          <button className="button button-outline add-section add-music-section" type="button" onClick={addMusicSection}><span aria-hidden="true">♫</span> ADD SPOTIFY TRACK</button>
           {selectedSection && (
             <div className="section-management">
               <button className="text-link" type="button" onClick={duplicateSection}>DUPLICATE PANEL</button>
@@ -603,6 +615,8 @@ function ProfileStudio() {
               <legend>PROFILE / IDENTITY</legend>
               <label className="field-label" htmlFor="display-name">DISPLAY NAME</label>
               <input id="display-name" value={profile.profile.displayName} onChange={(event) => updateProfile("displayName", event.target.value)} maxLength={48} />
+              <label className="field-label" htmlFor="hero-tagline">HERO HEADLINE / TEXT UNDER YOUR NAME</label>
+              <input id="hero-tagline" value={profile.profile.heroTagline ?? "IN THE MARGINS."} onChange={(event) => updateProfile("heroTagline", event.target.value)} maxLength={48} />
               <label className="field-label" htmlFor="username">USERNAME</label>
               <div className="input-prefix"><span>@</span><input id="username" value={profile.profile.username} onChange={(event) => updateProfile("username", event.target.value.replace(/[^a-zA-Z0-9_.-]/g, "").slice(0, 24))} maxLength={24} /></div>
               <label className="field-label" htmlFor="status">STATUS / NOW</label>
@@ -636,6 +650,25 @@ function ProfileStudio() {
               {selectedSection ? (
                 <>
                   <p className="selected-type">{selectedSection.kind.toUpperCase()} / {selectedSection.id}</p>
+                  {selectedSection.kind === "music" && (
+                    <>
+                      <label className="field-label" htmlFor="spotify-url">PASTE SPOTIFY TRACK LINK HERE</label>
+                      <input
+                        id="spotify-url"
+                        type="url"
+                        inputMode="url"
+                        placeholder="https://open.spotify.com/track/…"
+                        value={selectedSection.spotifyUrl ?? ""}
+                        onChange={(event) => updateSelectedSection("spotifyUrl", event.target.value)}
+                        aria-describedby="spotify-url-help"
+                      />
+                      <p className="spotify-url-help" id="spotify-url-help">
+                        {selectedSection.spotifyUrl && !parseSpotifyTrackUrl(selectedSection.spotifyUrl)
+                          ? "That link does not look like a Spotify track. Paste a track link to load its preview."
+                          : "Paste a Spotify track URL here. The preview will load its available title and artwork."}
+                      </p>
+                    </>
+                  )}
                   <label className="field-label" htmlFor="section-title">HEADING</label>
                   <input id="section-title" value={selectedSection.title} onChange={(event) => updateSelectedSection("title", event.target.value)} maxLength={80} />
                   <label className="field-label" htmlFor="section-copy">PANEL TEXT</label>
@@ -659,21 +692,6 @@ function ProfileStudio() {
                   )}
                   {selectedSection.kind === "music" && (
                     <>
-                      <label className="field-label" htmlFor="spotify-url">SPOTIFY TRACK URL</label>
-                      <input
-                        id="spotify-url"
-                        type="url"
-                        inputMode="url"
-                        placeholder="https://open.spotify.com/track/…"
-                        value={selectedSection.spotifyUrl ?? ""}
-                        onChange={(event) => updateSelectedSection("spotifyUrl", event.target.value)}
-                        aria-describedby="spotify-url-help"
-                      />
-                      <p className="spotify-url-help" id="spotify-url-help">
-                        {selectedSection.spotifyUrl && !parseSpotifyTrackUrl(selectedSection.spotifyUrl)
-                          ? "Use a Spotify track link, not an album, playlist, or search link."
-                          : "The live preview fetches Spotify's public title and artwork. Artist details may not be included."}
-                      </p>
                       <label className="field-label" htmlFor="spotify-label">MUSIC LABEL / SMALL HEADING</label>
                       <input
                         id="spotify-label"

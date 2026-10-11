@@ -11,7 +11,8 @@ export const defaultProfile = {
   layoutPreset: "scrapbook",
   profile: {
     displayName: "Sae Itoshi",
-    username: "sae10",
+    heroTagline: "IN THE MARGINS.",
+    username: "ajax",
     status: "reading the next pass",
     introduction: "Attacking midfielder. One pass ahead, always."
   },

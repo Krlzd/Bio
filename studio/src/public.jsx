@@ -61,7 +61,7 @@ function PublicPreview() {
   return (
     <main className="public-preview-page">
       <div className="public-preview-notice">
-        <span>PUBLISHED BIO / SAE 10</span>
+        <span>AJAX&apos;S BIO</span>
         <div className="public-preview-actions">
           <button
             className="preview-theme-toggle"

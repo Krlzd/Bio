@@ -22,14 +22,14 @@ export function ProfilePreview({ profile, sectionActions, isDark, enableSpotifyP
     >
       <header className="bio-preview-header">
         <span className="preview-mark" aria-hidden="true">冴</span>
-        <span className="preview-wordmark">MARGIN NOTES <b>/</b> {profile.profile.username}</span>
+        <span className="preview-wordmark">AJAX&apos;S BIO <b>/</b> {profile.profile.username}</span>
         <span className="preview-page-number">№ 10</span>
       </header>
 
       <section className="bio-hero">
         <div className="bio-hero-copy">
           <p className="preview-kicker">CHARACTER FILE / 010</p>
-          <h1>{profile.profile.displayName}<br /><em>IN THE MARGINS.</em></h1>
+          <h1>{profile.profile.displayName}<br /><em>{profile.profile.heroTagline || "IN THE MARGINS."}</em></h1>
           <p className="bio-status"><span aria-hidden="true">●</span> {profile.profile.status}</p>
           <p className="bio-introduction">{profile.profile.introduction}</p>
         </div>
