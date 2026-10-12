@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SpotifyMusicCard } from "./SpotifyMusicCard.jsx";
+import { splitGameEntries } from "./gameCollection.js";
 
 const defaultCopy = {
   mark: "冴",
@@ -194,27 +195,48 @@ function PreviewSection({ section, index, layoutPreset, profile, isDark, onSpoti
   if (section.kind === "games" || section.kind === "shows") {
     const entries = section.entries ?? profile.collections?.[section.kind] ?? [];
     const visibleEntries = entries.filter((entry) => entry.visible !== false);
+    const { featuredEntry, otherEntries: otherGames } = section.kind === "games"
+      ? splitGameEntries({ ...section, entries })
+      : { featuredEntry: null, otherEntries: [] };
+    if (section.kind === "games" && visibleEntries.length === 0 && !onSpotifyMetadataChange) return null;
+
     return (
       <section className={`preview-panel preview-collection preview-${section.kind}`} style={layoutStyle}>
         {section.copyVisibility?.caption !== false && section.caption && <p className="preview-kicker">{sectionNumber}{showCopy(profile, "sectionDivider") && copyText(profile, "sectionDivider") ? ` ${copyText(profile, "sectionDivider")} ` : " "}{section.caption}</p>}
         {section.copyVisibility?.title !== false && section.title && <h2>{section.title}</h2>}
         {section.copyVisibility?.body !== false && section.body && <p className="collection-description">{section.body}</p>}
         {section.kind === "games" ? (
-          <div className={`game-collection game-layout-${section.gameDisplay ?? "scrapbook"}`}>
-            {[...visibleEntries]
-              .sort((left, right) => Number(right.id === section.featuredGameId) - Number(left.id === section.featuredGameId))
-              .map((entry) => (
-              <GameCollectionEntry
-                key={entry.id}
-                entry={entry}
-                profile={profile}
-                display={section.gameDisplay ?? "scrapbook"}
-                isFeatured={section.featuredGameId
-                  ? section.featuredGameId === entry.id
-                  : entry.featured === true}
-              />
-            ))}
-          </div>
+          <>
+            {featuredEntry ? (
+              <div className="favorite-game-showcase">
+                <p className="favorite-game-label"><span>01</span> FAVORITE GAME</p>
+                <GameCollectionEntry entry={featuredEntry} profile={profile} display="wide" isFeatured />
+              </div>
+            ) : onSpotifyMetadataChange && (
+              <div className="game-editor-empty">
+                <strong>FAVORITE GAME PREVIEW</strong>
+                <span>Select or add one featured game in the Favorite Game editor tab.</span>
+              </div>
+            )}
+            {otherGames.length > 0 && (
+              <div className="other-games-section">
+                <h3 className="other-games-heading">OTHER GAMES <span>{String(otherGames.length).padStart(2, "0")}</span></h3>
+                <div className="other-games-grid">
+                  {otherGames.map((entry) => <CompactGameEntry key={entry.id} entry={entry} />)}
+                </div>
+              </div>
+            )}
+            {otherGames.some((entry) => entry.dataSource === "igdb") && (
+              <a className="game-provider-attribution other-games-attribution" href="https://www.igdb.com/" target="_blank" rel="noreferrer">
+                GAME DATA &amp; COVER IMAGES VIA IGDB ↗
+              </a>
+            )}
+            {otherGames.some((entry) => entry.dataSource === "rawg") && (
+              <a className="game-provider-attribution other-games-attribution" href="https://rawg.io/" target="_blank" rel="noreferrer">
+                GAME DATA &amp; COVER IMAGES VIA RAWG ↗
+              </a>
+            )}
+          </>
         ) : (
           <div className="collection-grid">
             {visibleEntries.map((entry) => <CollectionEntry key={entry.id} entry={entry} profile={profile} />)}
@@ -290,6 +312,21 @@ function CollectionEntry({ entry, profile }) {
           </a>
         )}
       </div>
+    </article>
+  );
+}
+
+function CompactGameEntry({ entry }) {
+  const titleVisible = entry.metadataVisibility?.title !== false && Boolean(entry.title?.trim());
+  const image = entry.metadataVisibility?.cover === false ? "" : safeImageUrl(entry.image);
+  return (
+    <article className="other-game-tile">
+      {image ? (
+        <img src={image} alt={titleVisible ? `${entry.title} cover` : "Game cover"} loading="lazy" />
+      ) : (
+        <span className="other-game-cover-fallback" aria-hidden="true">GAME</span>
+      )}
+      {titleVisible && <h4 title={entry.title}>{entry.title}</h4>}
     </article>
   );
 }

@@ -15,6 +15,7 @@ import {
 import { ProfilePreview } from "./ProfilePreview.jsx";
 import { searchAniListAnime } from "./anilist.js";
 import { fetchIgdbGameDetails, searchIgdbGames } from "./igdb.js";
+import { featuredGameIdFor, moveOtherGameEntries } from "./gameCollection.js";
 import { parseSpotifyTrackUrl } from "./spotify.js";
 import { supabase, supabaseConfigurationError } from "./supabaseClient.js";
 import "./studio.css";
@@ -45,6 +46,7 @@ function ProfileStudio() {
   const [gameResults, setGameResults] = useState([]);
   const [gameSearchStatus, setGameSearchStatus] = useState("");
   const [gameSearchBusy, setGameSearchBusy] = useState(false);
+  const [gameEditorTab, setGameEditorTab] = useState("favorite");
   const [availableGameScreenshots, setAvailableGameScreenshots] = useState({});
   const [gameScreenshotStatus, setGameScreenshotStatus] = useState({});
   const [activeGameScreenshot, setActiveGameScreenshot] = useState(null);
@@ -52,6 +54,15 @@ function ProfileStudio() {
     () => profile.sections.find((section) => section.id === selectedId) ?? null,
     [profile.sections, selectedId]
   );
+  const featuredGameId = selectedSection?.kind === "games" ? featuredGameIdFor(selectedSection) : "";
+  const gameEditorEntries = selectedSection?.kind === "games"
+    ? (selectedSection.entries ?? []).filter((entry) => gameEditorTab === "favorite"
+      ? entry.id === featuredGameId
+      : entry.id !== featuredGameId)
+    : [];
+  const editableCollectionEntries = selectedSection?.kind === "games"
+    ? gameEditorEntries
+    : selectedSection?.entries ?? [];
   const localDraftMatchesCloud = Boolean(
     cloudDraft && stableSerialize(profile) === stableSerialize(cloudDraft.content)
   );
@@ -384,8 +395,11 @@ function ProfileStudio() {
   };
 
   const addCollectionEntry = (sectionId) => {
+    const entryId = createSectionId();
+    const isFeaturedGame = profile.sections.find((section) => section.id === sectionId)?.kind === "games"
+      && gameEditorTab === "favorite";
     const entry = {
-      id: createSectionId(),
+      id: entryId,
       title: "",
       image: "",
       note: "",
@@ -395,7 +409,11 @@ function ProfileStudio() {
       ...current,
       sections: current.sections.map((section) =>
         section.id === sectionId
-          ? { ...section, entries: [...(section.entries ?? []), entry] }
+          ? {
+              ...section,
+              entries: [...(section.entries ?? []), entry],
+              ...(isFeaturedGame ? { featuredGameId: entryId } : {})
+            }
           : section
       )
     }));
@@ -420,18 +438,35 @@ function ProfileStudio() {
 
   const selectIgdbGame = async (result) => {
       if (!selectedSection || selectedSection.kind !== "games" || gameSearchBusy) return;
+      const existingEntry = (selectedSection.entries ?? []).find((entry) => Number(entry.igdbId) === Number(result.id));
+      if (existingEntry) {
+        if (gameEditorTab === "favorite") {
+          setFeaturedGame(selectedSection.id, existingEntry.id);
+          if (existingEntry.visible === false) {
+            updateCollectionEntry(selectedSection.id, existingEntry.id, "visible", true);
+          }
+        }
+        setGameSearchStatus(gameEditorTab === "favorite"
+          ? `${existingEntry.title || result.title} is already in the collection and is now the featured game.`
+          : `${existingEntry.title || result.title} is already in the collection.`);
+        return;
+      }
       setGameSearchBusy(true);
-      setGameSearchStatus(`Loading IGDB details and screenshots for ${result.title}…`);
+      setGameSearchStatus(gameEditorTab === "favorite"
+        ? `Loading IGDB details and screenshots for ${result.title}…`
+        : `Adding ${result.title} to Other Games…`);
 
       let game = result;
       let screenshots = [];
       let detailsWarning = "";
-      try {
-        const details = await fetchIgdbGameDetails(supabase, result.id);
-        game = details.game;
-        screenshots = details.screenshots;
-      } catch (error) {
-        detailsWarning = error instanceof Error ? error.message : "Details could not be loaded. You can still edit this entry manually.";
+      if (gameEditorTab === "favorite") {
+        try {
+          const details = await fetchIgdbGameDetails(supabase, result.id);
+          game = details.game;
+          screenshots = details.screenshots;
+        } catch (error) {
+          detailsWarning = error instanceof Error ? error.message : "Details could not be loaded. You can still edit this entry manually.";
+        }
       }
 
       const entryId = createSectionId();
@@ -463,18 +498,26 @@ function ProfileStudio() {
         ...current,
         sections: current.sections.map((section) =>
           section.id === selectedSection.id
-            ? { ...section, entries: [...(section.entries ?? []), entry] }
+            ? {
+                ...section,
+                entries: [...(section.entries ?? []), entry],
+                ...(gameEditorTab === "favorite" ? { featuredGameId: entryId } : {})
+              }
             : section
         )
       }));
       setAvailableGameScreenshots((current) => ({ ...current, [entryId]: screenshots }));
-      setGameScreenshotStatus((current) => ({
-        ...current,
-        [entryId]: screenshots.length
-          ? `${screenshots.length} IGDB screenshots available. Select the ones you want to keep in the profile.`
-          : detailsWarning || "IGDB did not return screenshots for this game. You can upload your own."
-      }));
-      setGameSearchStatus(detailsWarning || `${entry.title} added to the local draft. Choose screenshots, edit any metadata, then save the draft when ready.`);
+      if (gameEditorTab === "favorite") {
+        setGameScreenshotStatus((current) => ({
+          ...current,
+          [entryId]: screenshots.length
+            ? `${screenshots.length} IGDB screenshots available. Select the ones you want to keep in the profile.`
+            : detailsWarning || "IGDB did not return screenshots for this game. You can upload your own."
+        }));
+      }
+      setGameSearchStatus(gameEditorTab === "favorite"
+        ? detailsWarning || `${entry.title} added as the featured game. Edit the showcase, then save the draft when ready.`
+        : `${entry.title} added to Other Games. Save the draft when ready.`);
       setSelectedId(selectedSection.id);
       setGameSearchBusy(false);
     };
@@ -586,6 +629,16 @@ function ProfileStudio() {
       }));
   };
 
+  const moveOtherGame = (sectionId, entryId, offset) => {
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) => {
+        if (section.id !== sectionId || section.kind !== "games") return section;
+        return moveOtherGameEntries(section, entryId, offset);
+      })
+    }));
+  };
+
   const updateCollectionEntry = (sectionId, entryId, key, value) => {
     setProfile((current) => ({
       ...current,
@@ -631,7 +684,11 @@ function ProfileStudio() {
     setProfile((current) => ({
       ...current,
       sections: current.sections.map((section) => section.id === sectionId
-        ? { ...section, entries: (section.entries ?? []).filter((entry) => entry.id !== entryId) }
+        ? {
+            ...section,
+            entries: (section.entries ?? []).filter((entry) => entry.id !== entryId),
+            ...(section.kind === "games" && section.featuredGameId === entryId ? { featuredGameId: "" } : {})
+          }
         : section)
     }));
   };
@@ -1246,7 +1303,43 @@ function ProfileStudio() {
                   )}
                   {selectedSection.kind === "games" && (
                     <>
-                      <label className="field-label" htmlFor="igdb-game-search">SEARCH IGDB GAME DATABASE</label>
+                      <div className="game-editor-tabs" role="tablist" aria-label="Game display editors">
+                        <button
+                          id="favorite-game-tab"
+                          type="button"
+                          role="tab"
+                          aria-selected={gameEditorTab === "favorite"}
+                          aria-controls="favorite-game-editor"
+                          className={gameEditorTab === "favorite" ? "is-active" : ""}
+                          onClick={() => setGameEditorTab("favorite")}
+                        >
+                          FAVORITE GAME
+                        </button>
+                        <button
+                          id="other-games-tab"
+                          type="button"
+                          role="tab"
+                          aria-selected={gameEditorTab === "other"}
+                          aria-controls="other-games-editor"
+                          className={gameEditorTab === "other" ? "is-active" : ""}
+                          onClick={() => setGameEditorTab("other")}
+                        >
+                          OTHER GAMES
+                        </button>
+                      </div>
+                      <div
+                        id={gameEditorTab === "favorite" ? "favorite-game-editor" : "other-games-editor"}
+                        role="tabpanel"
+                        aria-labelledby={gameEditorTab === "favorite" ? "favorite-game-tab" : "other-games-tab"}
+                      >
+                      <p className="panel-hint">
+                        {gameEditorTab === "favorite"
+                          ? "One game is featured in the large public showcase. Replacing or clearing it keeps its entry in Other Games."
+                          : "Other Games only displays each game's cover and name. The featured game stays in its own showcase."}
+                      </p>
+                      <label className="field-label" htmlFor="igdb-game-search">
+                        {gameEditorTab === "favorite" ? "SEARCH FOR A FAVORITE GAME" : "ADD TO OTHER GAMES"}
+                      </label>
                       <form className="collection-search" onSubmit={searchGames}>
                         <input
                           id="igdb-game-search"
@@ -1280,49 +1373,54 @@ function ProfileStudio() {
                       <p className="panel-hint">
                         IGDB search requires the owner-only Supabase Edge Function and server-side Twitch app credentials. Until configured, use manual entry below.
                       </p>
-                    </>
-                  )}
-                  {(selectedSection.kind === "games" || selectedSection.kind === "shows") && (
-                    <>
                       {selectedSection.kind === "games" && (
                         <>
                           <label className="field-label" htmlFor="featured-game">FEATURED GAME</label>
-                          <select id="featured-game" value={selectedSection.featuredGameId ?? ""} onChange={(event) => setFeaturedGame(selectedSection.id, event.target.value)}>
+                          <div className="featured-game-control">
+                          <select id="featured-game" value={featuredGameId} onChange={(event) => setFeaturedGame(selectedSection.id, event.target.value)}>
                             <option value="">NO FEATURED GAME</option>
                             {(selectedSection.entries ?? []).filter((entry) => entry.visible !== false).map((entry) => (
                               <option key={entry.id} value={entry.id}>{entry.title || "Untitled game"}</option>
                             ))}
                           </select>
-                          <label className="field-label" htmlFor="game-display-layout">GAME LAYOUT</label>
-                          <select id="game-display-layout" value={selectedSection.gameDisplay ?? "scrapbook"} onChange={(event) => updateSelectedSection("gameDisplay", event.target.value)}>
-                            <option value="scrapbook">FEATURED SCRAPBOOK</option>
-                            <option value="wide">WIDE PANELS</option>
-                            <option value="cards">COVER COLLECTION</option>
-                            <option value="compact">COMPACT LIST</option>
-                          </select>
+                          {featuredGameId && <button className="text-link text-link-danger" type="button" onClick={() => setFeaturedGame(selectedSection.id, "")}>CLEAR FEATURED SLOT</button>}
+                          </div>
                         </>
                       )}
                       <div className="collection-editor-heading">
-                        <span>COLLECTION ENTRIES / {selectedSection.entries?.length ?? 0}</span>
-                        <button type="button" className="button button-outline" onClick={() => addCollectionEntry(selectedSection.id)}>＋ ADD MANUAL ENTRY</button>
+                        <span>{gameEditorTab === "favorite" ? "FEATURED GAME ENTRY" : `OTHER GAMES / ${gameEditorEntries.length}`}</span>
+                        {gameEditorTab === "favorite"
+                          ? !featuredGameId && <button type="button" className="button button-outline" onClick={() => addCollectionEntry(selectedSection.id)}>＋ ADD MANUAL FAVORITE</button>
+                          : <button type="button" className="button button-outline" onClick={() => addCollectionEntry(selectedSection.id)}>＋ ADD MANUAL GAME</button>}
                       </div>
-                      {(selectedSection.entries ?? []).map((entry, entryIndex) => {
+                      {gameEditorTab === "favorite" && !featuredGameId && <p className="game-editor-empty">Choose a result above or add a manual favorite to build the featured showcase.</p>}
+                      {editableCollectionEntries.map((entry, entryIndex) => {
                         const metadataFields = selectedSection.kind === "games"
                           ? [["description", "GAME SUMMARY"], ["platform", "PLATFORMS"], ["releaseDate", "RELEASE DATE"], ["year", "RELEASE YEAR"], ["developer", "DEVELOPERS"], ["publisher", "PUBLISHERS"], ["genre", "GENRES"], ...(entry.dataSource === "rawg" ? [["rawgRating", "LEGACY RAWG RATING"], ["metacritic", "LEGACY METACRITIC SCORE"]] : []), ["rating", "PERSONAL RATING"], ["status", "PLAY STATUS"], ["externalUrl", "OFFICIAL WEBSITE"]]
                           : [["mediaType", "MEDIA TYPE"], ["year", "RELEASE YEAR / RANGE"], ["genre", "GENRE"], ["status", "WATCH STATUS"], ["rating", "PERSONAL RATING"], ["externalUrl", "OFFICIAL / EXTERNAL URL"]];
+                        const actualEntryIndex = (selectedSection.entries ?? []).findIndex((item) => item.id === entry.id);
                         return (
                           <fieldset className="collection-editor-entry" key={entry.id}>
                             <legend>{String(entryIndex + 1).padStart(2, "0")} / {entry.title || (selectedSection.kind === "games" ? "GAME" : "SHOW")}</legend>
                             <div className="collection-entry-actions">
-                              <button type="button" disabled={entryIndex === 0} aria-label="Move entry up" onClick={() => moveCollectionEntry(selectedSection.id, entry.id, -1)}>↑</button>
-                              <button type="button" disabled={entryIndex === (selectedSection.entries?.length ?? 0) - 1} aria-label="Move entry down" onClick={() => moveCollectionEntry(selectedSection.id, entry.id, 1)}>↓</button>
+                              {selectedSection.kind === "games" && gameEditorTab === "other" ? (
+                                <>
+                                  <button type="button" disabled={entryIndex === 0} aria-label="Move game earlier in Other Games" onClick={() => moveOtherGame(selectedSection.id, entry.id, -1)}>↑</button>
+                                  <button type="button" disabled={entryIndex === gameEditorEntries.length - 1} aria-label="Move game later in Other Games" onClick={() => moveOtherGame(selectedSection.id, entry.id, 1)}>↓</button>
+                                </>
+                              ) : selectedSection.kind === "shows" ? (
+                                <>
+                                  <button type="button" disabled={actualEntryIndex === 0} aria-label="Move entry up" onClick={() => moveCollectionEntry(selectedSection.id, entry.id, -1)}>↑</button>
+                                  <button type="button" disabled={actualEntryIndex === (selectedSection.entries?.length ?? 0) - 1} aria-label="Move entry down" onClick={() => moveCollectionEntry(selectedSection.id, entry.id, 1)}>↓</button>
+                                </>
+                              ) : null}
                               <button type="button" className="text-link text-link-danger" onClick={() => removeCollectionEntry(selectedSection.id, entry.id)}>REMOVE ENTRY</button>
                             </div>
                             <label className="toggle-control">
                               <input type="checkbox" checked={entry.visible !== false} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "visible", event.target.checked)} />
                               <span>SHOW THIS ENTRY</span>
                             </label>
-                            {selectedSection.kind === "games" && (
+                            {selectedSection.kind === "games" && gameEditorTab === "favorite" && (
                               <>
                                 <label className="toggle-control">
                                   <input type="checkbox" checked={entry.favorite === true} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "favorite", event.target.checked)} />
@@ -1337,6 +1435,12 @@ function ProfileStudio() {
                             )}
                             <label className="field-label" htmlFor={`collection-title-${entry.id}`}>TITLE</label>
                             <input id={`collection-title-${entry.id}`} value={entry.title ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "title", event.target.value)} />
+                            {selectedSection.kind === "games" && gameEditorTab === "other" && (
+                              <>
+                                <label className="field-label" htmlFor={`collection-cover-url-${entry.id}`}>COVER / LOGO URL</label>
+                                <input id={`collection-cover-url-${entry.id}`} type="url" value={entry.image ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "image", event.target.value)} placeholder="https://…" />
+                              </>
+                            )}
                             {selectedSection.kind === "games" && entry.sourceTitle && entry.title !== entry.sourceTitle && (
                               <button type="button" className="text-link" onClick={() => updateCollectionEntry(selectedSection.id, entry.id, "title", entry.sourceTitle)}>RESTORE DATABASE TITLE</button>
                             )}
@@ -1351,6 +1455,8 @@ function ProfileStudio() {
                               <span>SHOW COVER / POSTER</span>
                             </label>
                             {entry.image && <button type="button" className="text-link text-link-danger" onClick={() => removeImage({ type: "entry", sectionId: selectedSection.id, id: entry.id }, entry.image)}>REMOVE COVER</button>}
+                            {!(selectedSection.kind === "games" && gameEditorTab === "other") && (
+                              <>
                             {selectedSection.kind === "games" && (
                               <label className="toggle-control">
                                 <input type="checkbox" checked={entry.metadataVisibility?.cover !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, "cover", event.target.checked)} />
@@ -1410,6 +1516,70 @@ function ProfileStudio() {
                                 onScreenshotVisibilityChange={(visible) => toggleCollectionMetadata(selectedSection.id, entry.id, "screenshots", visible)}
                               />
                             )}
+                              </>
+                            )}
+                          </fieldset>
+                        );
+                      })}
+                      </div>
+                    </>
+                  )}
+                  {(selectedSection.kind === "shows") && (
+                    <>
+                      <div className="collection-editor-heading">
+                        <span>COLLECTION ENTRIES / {selectedSection.entries?.length ?? 0}</span>
+                        <button type="button" className="button button-outline" onClick={() => addCollectionEntry(selectedSection.id)}>＋ ADD MANUAL ENTRY</button>
+                      </div>
+                      {(selectedSection.entries ?? []).map((entry, entryIndex) => {
+                        const metadataFields = [["mediaType", "MEDIA TYPE"], ["year", "RELEASE YEAR / RANGE"], ["genre", "GENRE"], ["status", "WATCH STATUS"], ["rating", "PERSONAL RATING"], ["externalUrl", "OFFICIAL / EXTERNAL URL"]];
+                        return (
+                          <fieldset className="collection-editor-entry" key={entry.id}>
+                            <legend>{String(entryIndex + 1).padStart(2, "0")} / {entry.title || "SHOW"}</legend>
+                            <div className="collection-entry-actions">
+                              <button type="button" disabled={entryIndex === 0} aria-label="Move entry up" onClick={() => moveCollectionEntry(selectedSection.id, entry.id, -1)}>↑</button>
+                              <button type="button" disabled={entryIndex === (selectedSection.entries?.length ?? 0) - 1} aria-label="Move entry down" onClick={() => moveCollectionEntry(selectedSection.id, entry.id, 1)}>↓</button>
+                              <button type="button" className="text-link text-link-danger" onClick={() => removeCollectionEntry(selectedSection.id, entry.id)}>REMOVE ENTRY</button>
+                            </div>
+                            <label className="toggle-control">
+                              <input type="checkbox" checked={entry.visible !== false} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "visible", event.target.checked)} />
+                              <span>SHOW THIS ENTRY</span>
+                            </label>
+                            <label className="field-label" htmlFor={`collection-title-${entry.id}`}>TITLE</label>
+                            <input id={`collection-title-${entry.id}`} value={entry.title ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "title", event.target.value)} />
+                            <label className="toggle-control">
+                              <input type="checkbox" checked={entry.metadataVisibility?.title !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, "title", event.target.checked)} />
+                              <span>SHOW TITLE</span>
+                            </label>
+                            <label className="field-label" htmlFor={`collection-cover-${entry.id}`}>COVER / POSTER</label>
+                            <input id={`collection-cover-${entry.id}`} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" disabled={cloudBusy} onChange={(event) => uploadImage(event, { type: "entry", sectionId: selectedSection.id, id: entry.id })} />
+                            <label className="toggle-control">
+                              <input type="checkbox" checked={entry.metadataVisibility?.cover !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, "cover", event.target.checked)} />
+                              <span>SHOW COVER / POSTER</span>
+                            </label>
+                            {entry.image && <button type="button" className="text-link text-link-danger" onClick={() => removeImage({ type: "entry", sectionId: selectedSection.id, id: entry.id }, entry.image)}>REMOVE COVER</button>}
+                            <label className="field-label" htmlFor={`collection-note-${entry.id}`}>PERSONAL NOTE</label>
+                            <textarea id={`collection-note-${entry.id}`} rows={2} value={entry.note ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "note", event.target.value)} />
+                            <label className="toggle-control">
+                              <input type="checkbox" checked={entry.metadataVisibility?.note !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, "note", event.target.checked)} />
+                              <span>SHOW PERSONAL NOTE</span>
+                            </label>
+                            {metadataFields.map(([key, label]) => (
+                              <div className="collection-meta-control" key={key}>
+                                <label className="field-label" htmlFor={`collection-${key}-${entry.id}`}>{label}</label>
+                                {key === "status" || key === "mediaType" ? (
+                                  <select id={`collection-${key}-${entry.id}`} value={entry[key] ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, key, event.target.value)}>
+                                    <option value="">NOT SET</option>
+                                    {(key === "status" ? ["Watching", "Completed", "On Hold", "Plan to Watch"] : ["Anime", "TV Series", "Animated Show", "Movie"]).map((option) => <option key={option} value={option}>{option}</option>)}
+                                  </select>
+                                ) : (
+                                  <input id={`collection-${key}-${entry.id}`} value={entry[key] ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, key, event.target.value)} />
+                                )}
+                                <label className="toggle-control">
+                                  <input type="checkbox" checked={entry.metadataVisibility?.[key] !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, key, event.target.checked)} />
+                                  <span>SHOW THIS DETAIL</span>
+                                </label>
+                              </div>
+                            ))}
                           </fieldset>
                         );
                       })}
