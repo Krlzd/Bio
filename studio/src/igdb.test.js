@@ -72,6 +72,22 @@ test("IGDB rate-limit errors retain the manual-entry fallback", async () => {
   );
 });
 
+test("proxy errors show the sanitized function response and HTTP status", async () => {
+  const client = createClient(async () => ({
+    data: null,
+    error: {
+      context: new Response(JSON.stringify({
+        error: "Twitch app authentication failed. Check the server-side IGDB credentials."
+      }), { status: 502, headers: { "Content-Type": "application/json" } })
+    }
+  }));
+
+  await assert.rejects(
+    () => searchIgdbGames(client, `igdb-proxy-error-${Date.now()}`),
+    /IGDB proxy error \(HTTP 502\): Twitch app authentication failed.*manual game entry still works/i
+  );
+});
+
 test("search rejects too-short and too-long queries before calling the proxy", async () => {
   let calls = 0;
   const client = createClient(async () => {

@@ -27,11 +27,26 @@ async function invokeIgdb(client, body) {
   }
   if (result.error) {
     const status = Number(result.error.context?.status);
+    let functionMessage = "";
+    if (typeof result.error.context?.clone === "function") {
+      try {
+        const errorBody = await result.error.context.clone().json();
+        if (typeof errorBody?.error === "string") functionMessage = errorBody.error.slice(0, 240);
+      } catch {
+        functionMessage = "";
+      }
+    }
     if (status === 401) throw new Error("Sign in again to search IGDB.");
     if (status === 403) throw new Error("Only the authorized owner can search IGDB.");
     if (status === 429) throw new Error("IGDB is rate-limiting requests. Wait a little, or add the game manually.");
     if (status === 503) throw new Error("IGDB credentials are not configured yet. Manual game entry still works.");
     if (status === 404) throw new Error("The IGDB Edge Function is not deployed yet. Manual game entry still works.");
+    if (functionMessage) {
+      throw new Error(`IGDB proxy error${Number.isFinite(status) ? ` (HTTP ${status})` : ""}: ${functionMessage} Manual game entry still works.`);
+    }
+    if (Number.isFinite(status)) {
+      throw new Error(`IGDB proxy returned HTTP ${status}. Check the Supabase Edge Function logs; manual game entry still works.`);
+    }
     throw new Error("IGDB search failed. Check the Edge Function status; manual game entry still works.");
   }
   if (!result.data || typeof result.data !== "object") {
