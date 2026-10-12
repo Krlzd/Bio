@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { SpotifyMusicCard } from "./SpotifyMusicCard.jsx";
 
 const defaultCopy = {
@@ -192,16 +193,33 @@ function PreviewSection({ section, index, layoutPreset, profile, isDark, onSpoti
 
   if (section.kind === "games" || section.kind === "shows") {
     const entries = section.entries ?? profile.collections?.[section.kind] ?? [];
+    const visibleEntries = entries.filter((entry) => entry.visible !== false);
     return (
       <section className={`preview-panel preview-collection preview-${section.kind}`} style={layoutStyle}>
         {section.copyVisibility?.caption !== false && section.caption && <p className="preview-kicker">{sectionNumber}{showCopy(profile, "sectionDivider") && copyText(profile, "sectionDivider") ? ` ${copyText(profile, "sectionDivider")} ` : " "}{section.caption}</p>}
         {section.copyVisibility?.title !== false && section.title && <h2>{section.title}</h2>}
         {section.copyVisibility?.body !== false && section.body && <p className="collection-description">{section.body}</p>}
-        <div className="collection-grid">
-          {entries.filter((entry) => entry.visible !== false).map((entry) => (
-            <CollectionEntry key={entry.id} entry={entry} profile={profile} />
-          ))}
-        </div>
+        {section.kind === "games" ? (
+          <div className={`game-collection game-layout-${section.gameDisplay ?? "scrapbook"}`}>
+            {[...visibleEntries]
+              .sort((left, right) => Number(right.id === section.featuredGameId) - Number(left.id === section.featuredGameId))
+              .map((entry) => (
+              <GameCollectionEntry
+                key={entry.id}
+                entry={entry}
+                profile={profile}
+                display={section.gameDisplay ?? "scrapbook"}
+                isFeatured={section.featuredGameId
+                  ? section.featuredGameId === entry.id
+                  : entry.featured === true}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="collection-grid">
+            {visibleEntries.map((entry) => <CollectionEntry key={entry.id} entry={entry} profile={profile} />)}
+          </div>
+        )}
       </section>
     );
   }
@@ -254,7 +272,7 @@ function CollectionEntry({ entry, profile }) {
   }
   return (
     <article className="collection-entry">
-      {entry.metadataVisibility?.cover !== false && entry.image && <img className="collection-cover" src={entry.image} alt={visible("title") && entry.title ? `${entry.title} cover` : ""} loading="lazy" />}
+      {entry.metadataVisibility?.cover !== false && safeImageUrl(entry.image) && <img className="collection-cover" src={safeImageUrl(entry.image)} alt={visible("title") && entry.title ? `${entry.title} cover` : ""} loading="lazy" />}
       <div className="collection-entry-copy">
         {visible("title") && <h3>{entry.title}</h3>}
         {visible("note") && <p>{entry.note}</p>}
@@ -274,4 +292,160 @@ function CollectionEntry({ entry, profile }) {
       </div>
     </article>
   );
+}
+
+function GameCollectionEntry({ entry, profile, display, isFeatured }) {
+  const [lightboxIndex, setLightboxIndex] = useState(-1);
+  const metadataVisibility = entry.metadataVisibility ?? {};
+  const isVisible = (key) => metadataVisibility[key] !== false && entry[key] !== undefined && entry[key] !== null && String(entry[key]).trim() !== "";
+  const screenshots = metadataVisibility.screenshots === false
+    ? []
+    : (Array.isArray(entry.screenshots) ? entry.screenshots : [])
+      .map((screenshot) => ({ ...screenshot, url: safeImageUrl(screenshot.url) }))
+      .filter((screenshot) => screenshot.url);
+  const featuredScreenshot = screenshots.find((item) => item.id === entry.featuredScreenshotId)
+    ?? screenshots[0];
+  const coverUrl = metadataVisibility.cover === false ? "" : safeImageUrl(entry.image);
+  const officialUrl = safeHttpUrl(entry.externalUrl || entry.website);
+  const legacyRawgUrl = entry.dataSource === "rawg" ? safeHttpUrl(entry.rawgUrl) || "https://rawg.io" : "";
+  const igdbPageUrl = entry.dataSource === "igdb" ? safeHttpUrl(entry.igdbUrl) || "https://www.igdb.com/" : "";
+  const providerUrl = igdbPageUrl || legacyRawgUrl;
+  const providerAttribution = igdbPageUrl ? "DATA & IMAGES VIA IGDB ↗" : "DATA & IMAGES VIA RAWG ↗";
+  const yearText = isVisible("releaseDate") ? entry.releaseDate : isVisible("year") ? entry.year : "";
+  const summary = isVisible("description") ? entry.description : "";
+  const personalNote = isVisible("note") ? entry.note : "";
+  const shouldShowLabel = (key) => showCopy(profile, key) && copyText(profile, key);
+
+  useEffect(() => {
+    if (lightboxIndex < 0) return undefined;
+    const handleKey = (event) => {
+      if (event.key === "Escape") setLightboxIndex(-1);
+      if (event.key === "ArrowLeft" && screenshots.length > 1) {
+        setLightboxIndex((index) => (index - 1 + screenshots.length) % screenshots.length);
+      }
+      if (event.key === "ArrowRight" && screenshots.length > 1) {
+        setLightboxIndex((index) => (index + 1) % screenshots.length);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [lightboxIndex, screenshots.length]);
+
+  const renderGameplay = (featured = false) => (
+    <>
+      {featuredScreenshot ? (
+        <button
+          className={`game-featured-shot ${featured ? "is-featured" : ""}`}
+          type="button"
+          onClick={() => setLightboxIndex(screenshots.findIndex((item) => item.id === featuredScreenshot.id))}
+          aria-label={`Enlarge featured gameplay screenshot for ${entry.title || "game"}`}
+        >
+          <img src={featuredScreenshot.url} alt={`${entry.title || "Game"} gameplay screenshot`} loading="lazy" />
+          {featured && <span>GAMEPLAY / {String(screenshots.findIndex((item) => item.id === featuredScreenshot.id) + 1).padStart(2, "0")}</span>}
+        </button>
+      ) : (
+        <div className="game-no-screenshots">
+          <span aria-hidden="true">▧</span>
+          <p>NO GAMEPLAY PANELS SELECTED</p>
+        </div>
+      )}
+      {screenshots.length > 1 && (
+        <div className="game-screenshot-strip" aria-label={`Gameplay screenshots for ${entry.title || "game"}`}>
+          {screenshots.map((screenshot, index) => (
+            <button type="button" key={screenshot.id ?? screenshot.url} onClick={() => setLightboxIndex(index)} aria-label={`View screenshot ${index + 1} of ${screenshots.length}`}>
+              <img src={screenshot.url} alt="" loading="lazy" />
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  const metadata = (
+    <div className="game-details-copy">
+      {isVisible("title") && <h3>{entry.title}</h3>}
+      {yearText && <p className="game-meta-line">{yearText}</p>}
+      {isVisible("genre") && <p className="game-meta-line">{entry.genre}</p>}
+      {isVisible("developer") && <p className="game-meta-line">{entry.developer}</p>}
+      {isVisible("publisher") && <p className="game-meta-line">{entry.publisher}</p>}
+      {isVisible("platform") && <p className="game-meta-line">{entry.platform}</p>}
+      {isVisible("status") && <p className="game-meta-line game-status">{entry.status}</p>}
+      {isVisible("rating") && <p className="game-meta-line">{shouldShowLabel("ratingLabel") ? `${copyText(profile, "ratingLabel")} / ` : ""}{entry.rating}</p>}
+      {isVisible("rawgRating") && <p className="game-meta-line">RAWG / {entry.rawgRating}</p>}
+      {isVisible("metacritic") && <p className="game-meta-line">METACRITIC / {entry.metacritic}</p>}
+      {summary && <p className="game-description">{summary}</p>}
+      {personalNote && <p className="game-personal-note">{personalNote}</p>}
+      <div className="game-link-row">
+        {officialUrl && isVisible("externalUrl") && <a href={officialUrl} target="_blank" rel="noreferrer">OFFICIAL SITE ↗</a>}
+        {providerUrl && <a href={providerUrl} target="_blank" rel="noreferrer">{providerAttribution}</a>}
+      </div>
+    </div>
+  );
+
+  const articleContent = (
+    <div className={`game-entry-content ${isFeatured ? "is-featured" : ""}`}>
+      <div className="game-image-stack">
+        {renderGameplay(isFeatured)}
+        {coverUrl && (
+          <figure className="game-cover-figure">
+            <img className="game-cover-image" src={coverUrl} alt={isVisible("title") ? `${entry.title} cover art` : "Game cover art"} loading="lazy" />
+            <figcaption>BOX ART / COVER</figcaption>
+          </figure>
+        )}
+      </div>
+      {metadata}
+    </div>
+  );
+
+  return (
+    <article className={`game-entry ${isFeatured ? "is-featured" : ""} ${entry.favorite ? "is-favorite" : ""}`}>
+      {isFeatured || display === "wide" || display === "scrapbook" ? (
+        articleContent
+      ) : (
+        <details className="game-entry-details">
+          <summary>
+            {coverUrl && <img className="game-summary-cover" src={coverUrl} alt="" loading="lazy" />}
+            <span className="game-summary-copy">
+              {isVisible("title") && <strong>{entry.title}</strong>}
+              {yearText && <small>{yearText}</small>}
+            </span>
+            {entry.favorite && <span className="game-favorite-stamp" aria-label="Favorite game">★</span>}
+          </summary>
+          {articleContent}
+        </details>
+      )}
+      {!isFeatured && providerUrl && (
+        <a className="game-provider-attribution" href={providerUrl} target="_blank" rel="noreferrer">
+          {providerAttribution}
+        </a>
+      )}
+      {lightboxIndex >= 0 && screenshots[lightboxIndex] && (
+        <div className="game-lightbox" role="dialog" aria-modal="true" aria-label={`Screenshot ${lightboxIndex + 1} of ${screenshots.length} for ${entry.title || "game"}`} onClick={(event) => {
+          if (event.target === event.currentTarget) setLightboxIndex(-1);
+        }}>
+          <div className="game-lightbox-panel">
+            <div className="game-lightbox-toolbar">
+              <span>{entry.title || "GAME"} / {lightboxIndex + 1} OF {screenshots.length}</span>
+              <button type="button" onClick={() => setLightboxIndex(-1)} aria-label="Close screenshot viewer">CLOSE ×</button>
+            </div>
+            <img src={screenshots[lightboxIndex].url} alt={`${entry.title || "Game"} gameplay screenshot ${lightboxIndex + 1}`} />
+            <div className="game-lightbox-toolbar">
+              <button type="button" disabled={screenshots.length < 2} onClick={() => setLightboxIndex((index) => (index - 1 + screenshots.length) % screenshots.length)} aria-label="Previous screenshot">← PREVIOUS</button>
+              <button type="button" disabled={screenshots.length < 2} onClick={() => setLightboxIndex((index) => (index + 1) % screenshots.length)} aria-label="Next screenshot">NEXT →</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function safeHttpUrl(value) {
+  if (typeof value !== "string" || !value.trim()) return "";
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : "";
+  } catch {
+    return "";
+  }
 }

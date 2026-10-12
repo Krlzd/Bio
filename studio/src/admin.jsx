@@ -14,6 +14,7 @@ import {
 } from "./data/supabaseProfileApi.js";
 import { ProfilePreview } from "./ProfilePreview.jsx";
 import { searchAniListAnime } from "./anilist.js";
+import { fetchIgdbGameDetails, searchIgdbGames } from "./igdb.js";
 import { parseSpotifyTrackUrl } from "./spotify.js";
 import { supabase, supabaseConfigurationError } from "./supabaseClient.js";
 import "./studio.css";
@@ -40,6 +41,13 @@ function ProfileStudio() {
   const [animeSearchQuery, setAnimeSearchQuery] = useState("");
   const [animeResults, setAnimeResults] = useState([]);
   const [animeSearchStatus, setAnimeSearchStatus] = useState("");
+  const [gameSearch, setGameSearch] = useState("");
+  const [gameResults, setGameResults] = useState([]);
+  const [gameSearchStatus, setGameSearchStatus] = useState("");
+  const [gameSearchBusy, setGameSearchBusy] = useState(false);
+  const [availableGameScreenshots, setAvailableGameScreenshots] = useState({});
+  const [gameScreenshotStatus, setGameScreenshotStatus] = useState({});
+  const [activeGameScreenshot, setActiveGameScreenshot] = useState(null);
   const selectedSection = useMemo(
     () => profile.sections.find((section) => section.id === selectedId) ?? null,
     [profile.sections, selectedId]
@@ -383,6 +391,191 @@ function ProfileStudio() {
       note: "",
       metadataVisibility: {}
     };
+
+    const searchGames = async (event) => {
+      event.preventDefault();
+      if (!supabase || selectedSection?.kind !== "games") return;
+      setGameSearchBusy(true);
+      setGameSearchStatus("Searching IGDB…");
+      setGameResults([]);
+      try {
+        const results = await searchIgdbGames(supabase, gameSearch);
+        setGameResults(results);
+        setGameSearchStatus(results.length ? `${results.length} IGDB result${results.length === 1 ? "" : "s"}. Select a title to add it to this local draft.` : "No matches found. You can still add a game manually.");
+      } catch (error) {
+        setGameSearchStatus(error instanceof Error ? error.message : "IGDB search failed. Manual game entry still works.");
+      } finally {
+        setGameSearchBusy(false);
+      }
+    };
+
+    const selectIgdbGame = async (result) => {
+      if (!selectedSection || selectedSection.kind !== "games" || gameSearchBusy) return;
+      setGameSearchBusy(true);
+      setGameSearchStatus(`Loading IGDB details and screenshots for ${result.title}…`);
+
+      let game = result;
+      let screenshots = [];
+      let detailsWarning = "";
+      try {
+        const details = await fetchIgdbGameDetails(supabase, result.id);
+        game = details.game;
+        screenshots = details.screenshots;
+      } catch (error) {
+        detailsWarning = error instanceof Error ? error.message : "Details could not be loaded. You can still edit this entry manually.";
+      }
+
+      const entryId = createSectionId();
+      const entry = {
+        id: entryId,
+        title: game.title || result.title || "",
+        sourceTitle: game.title || result.title || "",
+        image: game.cover || result.cover || "",
+        note: "",
+        description: game.description ?? "",
+        releaseDate: game.releaseDate ?? "",
+        year: game.year ?? "",
+        genre: (game.genres ?? []).join(", "),
+        developer: (game.developers ?? []).join(", "),
+        publisher: (game.publishers ?? []).join(", "),
+        platform: (game.platforms ?? []).join(", "),
+        rating: "",
+        website: game.website ?? "",
+        externalUrl: game.website ?? "",
+        igdbId: game.id,
+        igdbUrl: game.igdbUrl ?? result.igdbUrl ?? "",
+        dataSource: "igdb",
+        screenshots: [],
+        featuredScreenshotId: "",
+        favorite: false,
+        metadataVisibility: {}
+      };
+      setProfile((current) => ({
+        ...current,
+        sections: current.sections.map((section) =>
+          section.id === selectedSection.id
+            ? { ...section, entries: [...(section.entries ?? []), entry] }
+            : section
+        )
+      }));
+      setAvailableGameScreenshots((current) => ({ ...current, [entryId]: screenshots }));
+      setGameScreenshotStatus((current) => ({
+        ...current,
+        [entryId]: screenshots.length
+          ? `${screenshots.length} IGDB screenshots available. Select the ones you want to keep in the profile.`
+          : detailsWarning || "IGDB did not return screenshots for this game. You can upload your own."
+      }));
+      setGameSearchStatus(detailsWarning || `${entry.title} added to the local draft. Choose screenshots, edit any metadata, then save the draft when ready.`);
+      setSelectedId(selectedSection.id);
+      setGameSearchBusy(false);
+    };
+
+    const loadGameScreenshots = async (entry) => {
+      const gameId = entry.igdbId;
+      if (!supabase || !Number.isSafeInteger(Number(gameId))) return;
+      setGameScreenshotStatus((current) => ({ ...current, [entry.id]: "Loading IGDB screenshots…" }));
+      try {
+        const details = await fetchIgdbGameDetails(supabase, gameId);
+        setAvailableGameScreenshots((current) => ({ ...current, [entry.id]: details.screenshots }));
+        setGameScreenshotStatus((current) => ({
+          ...current,
+          [entry.id]: details.screenshots.length
+            ? `${details.screenshots.length} IGDB screenshots available. Select the ones you want to keep in the profile.`
+            : "IGDB did not return screenshots for this game. You can upload your own."
+        }));
+      } catch (error) {
+        setGameScreenshotStatus((current) => ({
+          ...current,
+          [entry.id]: error instanceof Error ? error.message : "Screenshots could not be loaded. You can upload your own."
+        }));
+      }
+    };
+
+    const toggleSourceScreenshot = (sectionId, entryId, screenshot) => {
+      const currentEntry = profile.sections
+        .find((section) => section.id === sectionId)
+        ?.entries?.find((entry) => entry.id === entryId);
+      const wasSelected = currentEntry?.screenshots?.some((item) => item.id === screenshot.id) ?? false;
+      setProfile((current) => ({
+        ...current,
+        sections: current.sections.map((section) => section.id !== sectionId ? section : {
+          ...section,
+          entries: (section.entries ?? []).map((entry) => {
+            if (entry.id !== entryId) return entry;
+            const selectedScreenshots = entry.screenshots ?? [];
+            const alreadySelected = selectedScreenshots.some((item) => item.id === screenshot.id);
+            const nextScreenshots = alreadySelected
+              ? selectedScreenshots.filter((item) => item.id !== screenshot.id)
+              : [...selectedScreenshots, { ...screenshot, source: "igdb" }];
+            return {
+              ...entry,
+              screenshots: nextScreenshots,
+              featuredScreenshotId: alreadySelected && entry.featuredScreenshotId === screenshot.id
+                ? nextScreenshots[0]?.id ?? ""
+                : !alreadySelected && !entry.featuredScreenshotId ? screenshot.id : entry.featuredScreenshotId
+            };
+          })
+        })
+      }));
+      setActiveGameScreenshot(wasSelected ? null : { entryId, url: screenshot.url });
+    };
+
+    const moveGameScreenshot = (sectionId, entryId, screenshotId, offset) => {
+      setProfile((current) => ({
+        ...current,
+        sections: current.sections.map((section) => {
+          if (section.id !== sectionId) return section;
+          return {
+            ...section,
+            entries: (section.entries ?? []).map((entry) => {
+              if (entry.id !== entryId) return entry;
+              const screenshots = [...(entry.screenshots ?? [])];
+              const from = screenshots.findIndex((item) => item.id === screenshotId);
+              const to = from + offset;
+              if (from < 0 || to < 0 || to >= screenshots.length) return entry;
+              [screenshots[from], screenshots[to]] = [screenshots[to], screenshots[from]];
+              return { ...entry, screenshots };
+            })
+          };
+        })
+      }));
+    };
+
+    const removeGameScreenshot = (sectionId, entryId, screenshot) => {
+      if (activeGameScreenshot?.entryId === entryId && activeGameScreenshot.url === screenshot.url) {
+        setActiveGameScreenshot(null);
+      }
+      if (screenshot.source === "upload") {
+        removeImage({ type: "gameScreenshot", sectionId, id: entryId }, screenshot.url);
+        return;
+      }
+      setProfile((current) => ({
+        ...current,
+        sections: current.sections.map((section) => section.id !== sectionId ? section : {
+          ...section,
+          entries: (section.entries ?? []).map((entry) => {
+            if (entry.id !== entryId) return entry;
+            const screenshots = (entry.screenshots ?? []).filter((item) => item.id !== screenshot.id);
+            return {
+              ...entry,
+              screenshots,
+              featuredScreenshotId: entry.featuredScreenshotId === screenshot.id
+                ? screenshots[0]?.id ?? ""
+                : entry.featuredScreenshotId
+            };
+          })
+        })
+      }));
+    };
+
+    const setFeaturedGame = (sectionId, entryId) => {
+      setProfile((current) => ({
+        ...current,
+        sections: current.sections.map((section) =>
+          section.id === sectionId ? { ...section, featuredGameId: entryId } : section
+        )
+      }));
+    };
     setProfile((current) => ({
       ...current,
       sections: current.sections.map((section) =>
@@ -479,6 +672,7 @@ function ProfileStudio() {
     setAssetStatus("Uploading image to the public profile bucket…");
     try {
       const imageUrl = await uploadProfileImage(supabase, file);
+      const uploadedScreenshotId = target.type === "gameScreenshot" ? createSectionId() : "";
       setProfile((current) => {
         if (target.type === "hero") {
           return { ...current, media: { ...current.media, hero: imageUrl } };
@@ -492,6 +686,19 @@ function ProfileStudio() {
                 entries: (section.entries ?? []).map((entry) =>
                   entry.id === target.id ? { ...entry, image: imageUrl } : entry
                 )
+              };
+            }
+            if (target.type === "gameScreenshot") {
+              return section.id !== target.sectionId ? section : {
+                ...section,
+                entries: (section.entries ?? []).map((entry) => entry.id !== target.id ? entry : {
+                  ...entry,
+                  screenshots: [
+                    ...(entry.screenshots ?? []),
+                    { id: uploadedScreenshotId, url: imageUrl, source: "upload" }
+                  ],
+                  featuredScreenshotId: entry.featuredScreenshotId || uploadedScreenshotId
+                })
               };
             }
             if (target.type === "sectionBackground") {
@@ -522,6 +729,24 @@ function ProfileStudio() {
               entries: (section.entries ?? []).map((entry) =>
                 entry.id === target.id ? { ...entry, image: "" } : entry
               )
+            })
+          }
+      : target.type === "gameScreenshot"
+        ? {
+            ...profile,
+            sections: profile.sections.map((section) => section.id !== target.sectionId ? section : {
+              ...section,
+              entries: (section.entries ?? []).map((entry) => {
+                if (entry.id !== target.id) return entry;
+                const screenshots = (entry.screenshots ?? []).filter((item) => item.url !== imageUrl);
+                return {
+                  ...entry,
+                  screenshots,
+                  featuredScreenshotId: screenshots.some((item) => item.id === entry.featuredScreenshotId)
+                    ? entry.featuredScreenshotId
+                    : screenshots[0]?.id ?? ""
+                };
+              })
             })
           }
       : target.type === "sectionBackground"
@@ -1019,15 +1244,71 @@ function ProfileStudio() {
                       <p className="panel-hint">Search is optional; you can create a fully manual entry below. Selected metadata is saved in your profile JSON.</p>
                     </>
                   )}
+                  {selectedSection.kind === "games" && (
+                    <>
+                      <label className="field-label" htmlFor="igdb-game-search">SEARCH IGDB GAME DATABASE</label>
+                      <form className="collection-search" onSubmit={searchGames}>
+                        <input
+                          id="igdb-game-search"
+                          value={gameSearch}
+                          onChange={(event) => setGameSearch(event.target.value)}
+                          placeholder="Search IGDB by game title…"
+                          maxLength={100}
+                        />
+                        <button className="button button-outline" type="submit" disabled={gameSearchBusy || gameSearch.trim().length < 2}>
+                          {gameSearchBusy ? "WAIT…" : "SEARCH"}
+                        </button>
+                      </form>
+                      {gameSearchStatus && <p className="panel-hint" role="status">{gameSearchStatus}</p>}
+                      {gameResults.length > 0 && (
+                        <ul className="anime-results igdb-search-results">
+                          {gameResults.map((result) => (
+                            <li key={result.id}>
+                            <button type="button" disabled={gameSearchBusy} onClick={() => selectIgdbGame(result)}>
+                                {result.cover && <img src={result.cover} alt="" loading="lazy" />}
+                                <span>
+                                  {result.title}{result.releaseDate ? ` · ${result.releaseDate}` : result.year ? ` · ${result.year}` : ""}
+                                  {result.genres?.length ? ` · ${result.genres.slice(0, 2).join(", ")}` : ""}
+                                  {result.platforms?.length ? ` · ${result.platforms.slice(0, 2).join(", ")}` : ""}
+                                  {result.developers?.length ? ` · ${result.developers.slice(0, 1).join(", ")}` : ""}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="panel-hint">
+                        IGDB search requires the owner-only Supabase Edge Function and server-side Twitch app credentials. Until configured, use manual entry below.
+                      </p>
+                    </>
+                  )}
                   {(selectedSection.kind === "games" || selectedSection.kind === "shows") && (
                     <>
+                      {selectedSection.kind === "games" && (
+                        <>
+                          <label className="field-label" htmlFor="featured-game">FEATURED GAME</label>
+                          <select id="featured-game" value={selectedSection.featuredGameId ?? ""} onChange={(event) => setFeaturedGame(selectedSection.id, event.target.value)}>
+                            <option value="">NO FEATURED GAME</option>
+                            {(selectedSection.entries ?? []).filter((entry) => entry.visible !== false).map((entry) => (
+                              <option key={entry.id} value={entry.id}>{entry.title || "Untitled game"}</option>
+                            ))}
+                          </select>
+                          <label className="field-label" htmlFor="game-display-layout">GAME LAYOUT</label>
+                          <select id="game-display-layout" value={selectedSection.gameDisplay ?? "scrapbook"} onChange={(event) => updateSelectedSection("gameDisplay", event.target.value)}>
+                            <option value="scrapbook">FEATURED SCRAPBOOK</option>
+                            <option value="wide">WIDE PANELS</option>
+                            <option value="cards">COVER COLLECTION</option>
+                            <option value="compact">COMPACT LIST</option>
+                          </select>
+                        </>
+                      )}
                       <div className="collection-editor-heading">
                         <span>COLLECTION ENTRIES / {selectedSection.entries?.length ?? 0}</span>
                         <button type="button" className="button button-outline" onClick={() => addCollectionEntry(selectedSection.id)}>＋ ADD MANUAL ENTRY</button>
                       </div>
                       {(selectedSection.entries ?? []).map((entry, entryIndex) => {
                         const metadataFields = selectedSection.kind === "games"
-                          ? [["platform", "PLATFORM"], ["year", "RELEASE YEAR"], ["developer", "DEVELOPER / PUBLISHER"], ["genre", "GENRE"], ["rating", "PERSONAL RATING"], ["status", "PLAY STATUS"], ["externalUrl", "OFFICIAL / EXTERNAL URL"]]
+                          ? [["description", "GAME SUMMARY"], ["platform", "PLATFORMS"], ["releaseDate", "RELEASE DATE"], ["year", "RELEASE YEAR"], ["developer", "DEVELOPERS"], ["publisher", "PUBLISHERS"], ["genre", "GENRES"], ...(entry.dataSource === "rawg" ? [["rawgRating", "LEGACY RAWG RATING"], ["metacritic", "LEGACY METACRITIC SCORE"]] : []), ["rating", "PERSONAL RATING"], ["status", "PLAY STATUS"], ["externalUrl", "OFFICIAL WEBSITE"]]
                           : [["mediaType", "MEDIA TYPE"], ["year", "RELEASE YEAR / RANGE"], ["genre", "GENRE"], ["status", "WATCH STATUS"], ["rating", "PERSONAL RATING"], ["externalUrl", "OFFICIAL / EXTERNAL URL"]];
                         return (
                           <fieldset className="collection-editor-entry" key={entry.id}>
@@ -1041,8 +1322,24 @@ function ProfileStudio() {
                               <input type="checkbox" checked={entry.visible !== false} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "visible", event.target.checked)} />
                               <span>SHOW THIS ENTRY</span>
                             </label>
+                            {selectedSection.kind === "games" && (
+                              <>
+                                <label className="toggle-control">
+                                  <input type="checkbox" checked={entry.favorite === true} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "favorite", event.target.checked)} />
+                                  <span>MARK AS A FAVORITE</span>
+                                </label>
+                                {(entry.dataSource === "igdb" || entry.dataSource === "rawg") && (
+                                  <div className="game-credit-editor">
+                                    {entry.dataSource === "igdb" ? "IGDB SOURCE" : "LEGACY RAWG SOURCE"} / <a href={entry.igdbUrl || entry.rawgUrl || "https://www.igdb.com/"} target="_blank" rel="noreferrer">VIEW GAME ↗</a>
+                                  </div>
+                                )}
+                              </>
+                            )}
                             <label className="field-label" htmlFor={`collection-title-${entry.id}`}>TITLE</label>
                             <input id={`collection-title-${entry.id}`} value={entry.title ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "title", event.target.value)} />
+                            {selectedSection.kind === "games" && entry.sourceTitle && entry.title !== entry.sourceTitle && (
+                              <button type="button" className="text-link" onClick={() => updateCollectionEntry(selectedSection.id, entry.id, "title", entry.sourceTitle)}>RESTORE DATABASE TITLE</button>
+                            )}
                             <label className="toggle-control">
                               <input type="checkbox" checked={entry.metadataVisibility?.title !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, "title", event.target.checked)} />
                               <span>SHOW TITLE</span>
@@ -1054,6 +1351,12 @@ function ProfileStudio() {
                               <span>SHOW COVER / POSTER</span>
                             </label>
                             {entry.image && <button type="button" className="text-link text-link-danger" onClick={() => removeImage({ type: "entry", sectionId: selectedSection.id, id: entry.id }, entry.image)}>REMOVE COVER</button>}
+                            {selectedSection.kind === "games" && (
+                              <label className="toggle-control">
+                                <input type="checkbox" checked={entry.metadataVisibility?.cover !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, "cover", event.target.checked)} />
+                                <span>SHOW COVER ART</span>
+                              </label>
+                            )}
                             <label className="field-label" htmlFor={`collection-note-${entry.id}`}>PERSONAL NOTE</label>
                             <textarea id={`collection-note-${entry.id}`} rows={2} value={entry.note ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "note", event.target.value)} />
                             <label className="toggle-control">
@@ -1063,7 +1366,9 @@ function ProfileStudio() {
                             {metadataFields.map(([key, label]) => (
                               <div className="collection-meta-control" key={key}>
                                 <label className="field-label" htmlFor={`collection-${key}-${entry.id}`}>{label}</label>
-                                {key === "status" ? (
+                                {key === "description" || key === "note" ? (
+                                  <textarea id={`collection-${key}-${entry.id}`} rows={key === "description" ? 4 : 2} value={entry[key] ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, key, event.target.value)} />
+                                ) : key === "status" ? (
                                   <select id={`collection-${key}-${entry.id}`} value={entry[key] ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, key, event.target.value)}>
                                     <option value="">NOT SET</option>
                                     {(selectedSection.kind === "games"
@@ -1083,6 +1388,28 @@ function ProfileStudio() {
                                 </label>
                               </div>
                             ))}
+                            {selectedSection.kind === "games" && (
+                              <GameScreenshotsEditor
+                                entry={entry}
+                                sectionId={selectedSection.id}
+                                availableScreenshots={availableGameScreenshots[entry.id] ?? []}
+                                screenshotStatus={gameScreenshotStatus[entry.id] ?? ""}
+                                activeScreenshot={activeGameScreenshot?.entryId === entry.id ? activeGameScreenshot.url : ""}
+                                busy={cloudBusy || gameSearchBusy}
+                                onLoadScreenshots={() => loadGameScreenshots(entry)}
+                                onToggleScreenshot={(screenshot) => toggleSourceScreenshot(selectedSection.id, entry.id, screenshot)}
+                                onMoveScreenshot={(screenshotId, offset) => moveGameScreenshot(selectedSection.id, entry.id, screenshotId, offset)}
+                                onRemoveScreenshot={(screenshot) => removeGameScreenshot(selectedSection.id, entry.id, screenshot)}
+                                onUploadScreenshot={(event) => uploadImage(event, { type: "gameScreenshot", sectionId: selectedSection.id, id: entry.id })}
+                                onFeatureScreenshot={(screenshotId) => {
+                                  updateCollectionEntry(selectedSection.id, entry.id, "featuredScreenshotId", screenshotId);
+                                  const screenshot = entry.screenshots?.find((item) => item.id === screenshotId);
+                                  if (screenshot) setActiveGameScreenshot({ entryId: entry.id, url: screenshot.url });
+                                }}
+                                onPreviewScreenshot={(url) => setActiveGameScreenshot({ entryId: entry.id, url })}
+                                onScreenshotVisibilityChange={(visible) => toggleCollectionMetadata(selectedSection.id, entry.id, "screenshots", visible)}
+                              />
+                            )}
                           </fieldset>
                         );
                       })}
@@ -1273,6 +1600,120 @@ function CustomTextControl({
         </label>
         <button className="text-link" type="button" onClick={onReset}>RESTORE DEFAULT</button>
       </div>
+    </div>
+  );
+}
+
+function GameScreenshotsEditor({
+  entry,
+  availableScreenshots,
+  screenshotStatus,
+  activeScreenshot,
+  busy,
+  onLoadScreenshots,
+  onToggleScreenshot,
+  onMoveScreenshot,
+  onRemoveScreenshot,
+  onUploadScreenshot,
+  onFeatureScreenshot,
+  onPreviewScreenshot,
+  onScreenshotVisibilityChange
+}) {
+  const selectedScreenshots = entry.screenshots ?? [];
+  const featuredScreenshot = selectedScreenshots.find((item) => item.id === entry.featuredScreenshotId)
+    ?? selectedScreenshots[0];
+  const previewUrl = activeScreenshot
+    || featuredScreenshot?.url
+    || availableScreenshots[0]?.url
+    || "";
+
+  return (
+    <div className="game-screenshots-editor">
+      <div className="game-screenshot-heading">
+        <span>GAMEPLAY PANELS / {selectedScreenshots.length} SELECTED</span>
+        {entry.dataSource === "igdb" && (
+          <button type="button" className="text-link" onClick={onLoadScreenshots} disabled={busy}>
+            LOAD IGDB SCREENSHOTS
+          </button>
+        )}
+      </div>
+      {screenshotStatus && <p className="panel-hint" role="status">{screenshotStatus}</p>}
+      {previewUrl ? (
+        <button className="game-screenshot-large-preview" type="button" onClick={() => onPreviewScreenshot(previewUrl)} aria-label="Open screenshot preview">
+          <img src={previewUrl} alt={`Screenshot preview for ${entry.title || "game"}`} loading="lazy" />
+          <span>PREVIEW SELECTED PANEL ↗</span>
+        </button>
+      ) : (
+        <p className="game-screenshot-empty">NO GAMEPLAY PANELS SELECTED / Upload a screenshot or search IGDB.</p>
+      )}
+
+      {availableScreenshots.length > 0 && (
+        <>
+          <p className="field-label">IGDB SCREENSHOT SELECTION / CHECK TO KEEP</p>
+          <div className="source-screenshot-gallery" aria-label={`IGDB screenshot choices for ${entry.title || "game"}`}>
+            {availableScreenshots.map((screenshot, index) => {
+              const checked = selectedScreenshots.some((item) => item.id === screenshot.id);
+              return (
+                <label className={`source-screenshot-option ${checked ? "is-selected" : ""}`} key={screenshot.id}>
+                  <input type="checkbox" checked={checked} onChange={() => onToggleScreenshot(screenshot)} />
+                  <img
+                    src={screenshot.url}
+                    alt={`IGDB screenshot ${index + 1}`}
+                    loading="lazy"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onPreviewScreenshot(screenshot.url);
+                    }}
+                  />
+                  <span>{checked ? "SELECTED" : "ADD PANEL"}</span>
+                </label>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <label className="field-label" htmlFor={`game-screenshot-upload-${entry.id}`}>UPLOAD A PERSONAL SCREENSHOT</label>
+      <input
+        id={`game-screenshot-upload-${entry.id}`}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+        disabled={busy}
+        onChange={onUploadScreenshot}
+      />
+      <p className="panel-hint">PNG, JPEG, WebP, GIF, or AVIF; maximum 8 MiB. Uploaded shots use your existing private-owner upload workflow and public display URLs.</p>
+
+      {selectedScreenshots.length > 0 && (
+        <>
+          <label className="field-label" htmlFor={`featured-screenshot-${entry.id}`}>FEATURED GAMEPLAY PANEL</label>
+          <select
+            id={`featured-screenshot-${entry.id}`}
+            value={entry.featuredScreenshotId || featuredScreenshot?.id || ""}
+            onChange={(event) => onFeatureScreenshot(event.target.value)}
+          >
+            {selectedScreenshots.map((screenshot, index) => (
+              <option value={screenshot.id} key={screenshot.id}>{String(index + 1).padStart(2, "0")} / {screenshot.source === "upload" ? "UPLOADED" : screenshot.source === "rawg" ? "LEGACY RAWG" : "IGDB"}</option>
+            ))}
+          </select>
+          <ol className="selected-screenshot-list" aria-label="Selected screenshot order">
+            {selectedScreenshots.map((screenshot, index) => (
+              <li key={screenshot.id}>
+                <button type="button" className="selected-screenshot-thumb" onClick={() => onPreviewScreenshot(screenshot.url)} aria-label={`Preview screenshot ${index + 1}`}>
+                  <img src={screenshot.url} alt="" loading="lazy" />
+                </button>
+                <span>{String(index + 1).padStart(2, "0")} / {screenshot.source === "upload" ? "UPLOAD" : screenshot.source === "rawg" ? "LEGACY RAWG" : "IGDB"}</span>
+                <button type="button" disabled={index === 0} onClick={() => onMoveScreenshot(screenshot.id, -1)} aria-label={`Move screenshot ${index + 1} up`}>↑</button>
+                <button type="button" disabled={index === selectedScreenshots.length - 1} onClick={() => onMoveScreenshot(screenshot.id, 1)} aria-label={`Move screenshot ${index + 1} down`}>↓</button>
+                <button type="button" className="text-link text-link-danger" onClick={() => onRemoveScreenshot(screenshot)}>REMOVE</button>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+      <label className="toggle-control">
+        <input type="checkbox" checked={entry.metadataVisibility?.screenshots !== false} onChange={(event) => onScreenshotVisibilityChange(event.target.checked)} />
+        <span>SHOW SCREENSHOT PANELS PUBLICLY</span>
+      </label>
     </div>
   );
 }
