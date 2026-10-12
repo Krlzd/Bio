@@ -1,4 +1,4 @@
 project_id = "panzsibxgypqnlckwinp"
 
 [functions.igdb-games]
-verify_jwt = true
+verify_jwt = false
