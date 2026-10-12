@@ -391,8 +391,17 @@ function ProfileStudio() {
       note: "",
       metadataVisibility: {}
     };
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) =>
+        section.id === sectionId
+          ? { ...section, entries: [...(section.entries ?? []), entry] }
+          : section
+      )
+    }));
+  };
 
-    const searchGames = async (event) => {
+  const searchGames = async (event) => {
       event.preventDefault();
       if (!supabase || selectedSection?.kind !== "games") return;
       setGameSearchBusy(true);
@@ -409,7 +418,7 @@ function ProfileStudio() {
       }
     };
 
-    const selectIgdbGame = async (result) => {
+  const selectIgdbGame = async (result) => {
       if (!selectedSection || selectedSection.kind !== "games" || gameSearchBusy) return;
       setGameSearchBusy(true);
       setGameSearchStatus(`Loading IGDB details and screenshots for ${result.title}…`);
@@ -470,7 +479,7 @@ function ProfileStudio() {
       setGameSearchBusy(false);
     };
 
-    const loadGameScreenshots = async (entry) => {
+  const loadGameScreenshots = async (entry) => {
       const gameId = entry.igdbId;
       if (!supabase || !Number.isSafeInteger(Number(gameId))) return;
       setGameScreenshotStatus((current) => ({ ...current, [entry.id]: "Loading IGDB screenshots…" }));
@@ -491,7 +500,7 @@ function ProfileStudio() {
       }
     };
 
-    const toggleSourceScreenshot = (sectionId, entryId, screenshot) => {
+  const toggleSourceScreenshot = (sectionId, entryId, screenshot) => {
       const currentEntry = profile.sections
         .find((section) => section.id === sectionId)
         ?.entries?.find((entry) => entry.id === entryId);
@@ -520,7 +529,7 @@ function ProfileStudio() {
       setActiveGameScreenshot(wasSelected ? null : { entryId, url: screenshot.url });
     };
 
-    const moveGameScreenshot = (sectionId, entryId, screenshotId, offset) => {
+  const moveGameScreenshot = (sectionId, entryId, screenshotId, offset) => {
       setProfile((current) => ({
         ...current,
         sections: current.sections.map((section) => {
@@ -541,7 +550,7 @@ function ProfileStudio() {
       }));
     };
 
-    const removeGameScreenshot = (sectionId, entryId, screenshot) => {
+  const removeGameScreenshot = (sectionId, entryId, screenshot) => {
       if (activeGameScreenshot?.entryId === entryId && activeGameScreenshot.url === screenshot.url) {
         setActiveGameScreenshot(null);
       }
@@ -568,22 +577,13 @@ function ProfileStudio() {
       }));
     };
 
-    const setFeaturedGame = (sectionId, entryId) => {
+  const setFeaturedGame = (sectionId, entryId) => {
       setProfile((current) => ({
         ...current,
         sections: current.sections.map((section) =>
           section.id === sectionId ? { ...section, featuredGameId: entryId } : section
         )
       }));
-    };
-    setProfile((current) => ({
-      ...current,
-      sections: current.sections.map((section) =>
-        section.id === sectionId
-          ? { ...section, entries: [...(section.entries ?? []), entry] }
-          : section
-      )
-    }));
   };
 
   const updateCollectionEntry = (sectionId, entryId, key, value) => {
