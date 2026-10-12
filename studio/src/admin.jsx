@@ -13,6 +13,7 @@ import {
   verifyProfileOwner
 } from "./data/supabaseProfileApi.js";
 import { ProfilePreview } from "./ProfilePreview.jsx";
+import { searchAniListAnime } from "./anilist.js";
 import { parseSpotifyTrackUrl } from "./spotify.js";
 import { supabase, supabaseConfigurationError } from "./supabaseClient.js";
 import "./studio.css";
@@ -35,6 +36,10 @@ function ProfileStudio() {
   const [cloudStatus, setCloudStatus] = useState("");
   const [cloudBusy, setCloudBusy] = useState(false);
   const [assetStatus, setAssetStatus] = useState("");
+  const [animeSearch, setAnimeSearch] = useState("");
+  const [animeSearchQuery, setAnimeSearchQuery] = useState("");
+  const [animeResults, setAnimeResults] = useState([]);
+  const [animeSearchStatus, setAnimeSearchStatus] = useState("");
   const selectedSection = useMemo(
     () => profile.sections.find((section) => section.id === selectedId) ?? null,
     [profile.sections, selectedId]
@@ -42,6 +47,33 @@ function ProfileStudio() {
   const localDraftMatchesCloud = Boolean(
     cloudDraft && stableSerialize(profile) === stableSerialize(cloudDraft.content)
   );
+  useEffect(() => {
+    if (selectedSection?.kind !== "shows" || animeSearchQuery.trim().length < 2) {
+      setAnimeResults([]);
+      setAnimeSearchStatus("");
+      return undefined;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setAnimeSearchStatus("Searching AniList…");
+      try {
+        const results = await searchAniListAnime(animeSearchQuery, { signal: controller.signal });
+        if (!controller.signal.aborted) {
+          setAnimeResults(results);
+          setAnimeSearchStatus(results.length ? "" : "No anime matches. You can enter the show manually.");
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setAnimeResults([]);
+          setAnimeSearchStatus(error instanceof Error ? error.message : "Search failed. Manual entry is still available.");
+        }
+      }
+    }, 350);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [animeSearchQuery, selectedSection?.kind]);
 
   useEffect(() => {
     if (!supabase) {
@@ -153,6 +185,106 @@ function ProfileStudio() {
     }));
   };
 
+  const updateProfileLayout = (key, value) => {
+    setProfile((current) => ({
+      ...current,
+      layout: { ...(current.layout ?? {}), [key]: value }
+    }));
+  };
+
+  const updateSectionLayout = (key, value) => {
+    if (!selectedSection) return;
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) =>
+        section.id === selectedId
+          ? { ...section, layout: { ...(section.layout ?? {}), [key]: value } }
+          : section
+      )
+    }));
+  };
+
+  const updateProfileCopy = (key, value) => {
+    setProfile((current) => ({
+      ...current,
+      copy: { ...current.copy, [key]: value }
+    }));
+  };
+
+  const setProfileFieldVisibility = (key, visible) => {
+    setProfile((current) => ({
+      ...current,
+      profileVisibility: { ...current.profileVisibility, [key]: visible }
+    }));
+  };
+
+  const resetProfileField = (key) => {
+    setProfile((current) => ({
+      ...current,
+      profile: { ...current.profile, [key]: defaultProfile.profile[key] },
+      profileVisibility: { ...current.profileVisibility, [key]: true }
+    }));
+  };
+
+  const setSelectedTextVisibility = (key, visible) => {
+    if (!selectedSection) return;
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) => section.id === selectedId
+        ? { ...section, copyVisibility: { ...section.copyVisibility, [key]: visible } }
+        : section)
+    }));
+  };
+
+  const resetSelectedText = (key) => {
+    if (!selectedSection) return;
+    const template = defaultProfile.sections.find((section) => section.id === selectedId)
+      ?? defaultProfile.sections.find((section) => section.kind === selectedSection.kind);
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) => section.id === selectedId
+        ? {
+            ...section,
+            [key]: template?.[key] ?? "",
+            copyVisibility: { ...section.copyVisibility, [key]: true }
+          }
+        : section)
+    }));
+  };
+
+  const resetProfileCopy = (key) => {
+    setProfile((current) => {
+      const copy = { ...current.copy, [key]: defaultProfile.copy[key] };
+      const copyVisibility = { ...current.copyVisibility };
+      delete copyVisibility[key];
+      return { ...current, copy, copyVisibility };
+    });
+  };
+
+  const selectAniListResult = (result) => {
+    if (!selectedSection) return;
+    const entry = {
+      ...result,
+      id: createSectionId(),
+      note: "",
+      status: "",
+      rating: "",
+      metadataVisibility: {}
+    };
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) =>
+        section.id === selectedId
+          ? { ...section, entries: [...(section.entries ?? []), entry] }
+          : section
+      )
+    }));
+    setAnimeSearch("");
+    setAnimeSearchQuery("");
+    setAnimeResults([]);
+    setAnimeSearchStatus("");
+  };
+
   const updateSelectedSection = (key, value) => {
     setProfile((current) => ({
       ...current,
@@ -228,6 +360,89 @@ function ProfileStudio() {
     window.requestAnimationFrame(() => document.getElementById("spotify-url")?.focus());
   };
 
+  const addCollectionSection = (kind) => {
+    const isGames = kind === "games";
+    const section = {
+      id: createSectionId(),
+      kind,
+      title: isGames ? "FAVORITE GAMES" : "FAVORITE SHOWS & ANIME",
+      caption: isGames ? "SAVE FILES / SELECTED" : "WATCHLIST / SELECTED",
+      entries: [],
+      visible: true,
+      layout: { width: "full", height: "auto", borderStyle: "solid", padding: 12 }
+    };
+    setProfile((current) => ({ ...current, sections: [...current.sections, section] }));
+    setSelectedId(section.id);
+  };
+
+  const addCollectionEntry = (sectionId) => {
+    const entry = {
+      id: createSectionId(),
+      title: "",
+      image: "",
+      note: "",
+      metadataVisibility: {}
+    };
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) =>
+        section.id === sectionId
+          ? { ...section, entries: [...(section.entries ?? []), entry] }
+          : section
+      )
+    }));
+  };
+
+  const updateCollectionEntry = (sectionId, entryId, key, value) => {
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) => section.id !== sectionId ? section : {
+        ...section,
+        entries: (section.entries ?? []).map((entry) =>
+          entry.id === entryId ? { ...entry, [key]: value } : entry
+        )
+      })
+    }));
+  };
+
+  const toggleCollectionMetadata = (sectionId, entryId, key, visible) => {
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) => section.id !== sectionId ? section : {
+        ...section,
+        entries: (section.entries ?? []).map((entry) => entry.id !== entryId ? entry : {
+          ...entry,
+          metadataVisibility: { ...entry.metadataVisibility, [key]: visible }
+        })
+      })
+    }));
+  };
+
+  const moveCollectionEntry = (sectionId, entryId, offset) => {
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) => {
+        if (section.id !== sectionId) return section;
+        const entries = [...(section.entries ?? [])];
+        const from = entries.findIndex((entry) => entry.id === entryId);
+        const to = from + offset;
+        if (from < 0 || to < 0 || to >= entries.length) return section;
+        [entries[from], entries[to]] = [entries[to], entries[from]];
+        return { ...section, entries };
+      })
+    }));
+  };
+
+  const removeCollectionEntry = (sectionId, entryId) => {
+    if (!window.confirm("Remove this entry from the current profile draft?")) return;
+    setProfile((current) => ({
+      ...current,
+      sections: current.sections.map((section) => section.id === sectionId
+        ? { ...section, entries: (section.entries ?? []).filter((entry) => entry.id !== entryId) }
+        : section)
+    }));
+  };
+
   const resetToDefaults = () => {
     if (!window.confirm("Reset the editor and this browser's local draft to the original default profile? This does not change your saved Supabase draft or published profile. You can save and publish the defaults separately.")) return;
     const resetProfile = structuredClone(defaultProfile);
@@ -270,9 +485,23 @@ function ProfileStudio() {
         }
         return {
           ...current,
-          sections: current.sections.map((section) =>
-            section.id === target.id ? { ...section, image: imageUrl } : section
-          )
+          sections: current.sections.map((section) => {
+            if (target.type === "entry") {
+              return section.id !== target.sectionId ? section : {
+                ...section,
+                entries: (section.entries ?? []).map((entry) =>
+                  entry.id === target.id ? { ...entry, image: imageUrl } : entry
+                )
+              };
+            }
+            if (target.type === "sectionBackground") {
+              return section.id !== target.id ? section : {
+                ...section,
+                layout: { ...(section.layout ?? {}), backgroundImage: imageUrl }
+              };
+            }
+            return section.id === target.id ? { ...section, image: imageUrl } : section;
+          })
         };
       });
       setAssetStatus("Image uploaded. Save the profile draft to keep this image reference, then publish when ready.");
@@ -285,6 +514,23 @@ function ProfileStudio() {
     if (!imageUrl) return;
     const nextProfile = target.type === "hero"
       ? { ...profile, media: { ...profile.media, hero: "" } }
+      : target.type === "entry"
+        ? {
+            ...profile,
+            sections: profile.sections.map((section) => section.id !== target.sectionId ? section : {
+              ...section,
+              entries: (section.entries ?? []).map((entry) =>
+                entry.id === target.id ? { ...entry, image: "" } : entry
+              )
+            })
+          }
+      : target.type === "sectionBackground"
+        ? {
+            ...profile,
+            sections: profile.sections.map((section) => section.id === target.id
+              ? { ...section, layout: { ...(section.layout ?? {}), backgroundImage: "" } }
+              : section)
+          }
       : {
           ...profile,
           sections: profile.sections.map((section) =>
@@ -559,18 +805,20 @@ function ProfileStudio() {
                 <button className="section-select" type="button" onClick={() => setSelectedId(section.id)} aria-current={selectedId === section.id ? "true" : undefined}>
                   <span className="section-order">{String(index + 1).padStart(2, "0")}</span>
                   <span className="section-label">{section.title}</span>
-                  <span className={`visibility-mark ${section.visible ? "is-visible" : ""}`} aria-label={section.visible ? "Visible" : "Hidden"}>{section.visible ? "●" : "○"}</span>
+                  <span className={`visibility-mark ${section.visible !== false ? "is-visible" : ""}`} aria-label={section.visible === false ? "Hidden" : "Visible"}>{section.visible === false ? "○" : "●"}</span>
                 </button>
                 <div className="section-row-actions" aria-label={`Actions for ${section.title}`}>
                   <button type="button" aria-label={`Move ${section.title} up`} disabled={index === 0} onClick={() => moveSection(section.id, -1)}>↑</button>
                   <button type="button" aria-label={`Move ${section.title} down`} disabled={index === profile.sections.length - 1} onClick={() => moveSection(section.id, 1)}>↓</button>
-                  <button type="button" aria-label={`${section.visible ? "Hide" : "Show"} ${section.title}`} onClick={() => toggleSection(section.id)}>{section.visible ? "HIDE" : "SHOW"}</button>
+                  <button type="button" aria-label={`${section.visible !== false ? "Hide" : "Show"} ${section.title}`} onClick={() => toggleSection(section.id)}>{section.visible !== false ? "HIDE" : "SHOW"}</button>
                 </div>
               </li>
             ))}
           </ol>
           <button className="button button-outline add-section" type="button" onClick={addSection}><span aria-hidden="true">＋</span> ADD A NOTE</button>
           <button className="button button-outline add-section add-music-section" type="button" onClick={addMusicSection}><span aria-hidden="true">♫</span> ADD SPOTIFY TRACK</button>
+          <button className="button button-outline add-section" type="button" onClick={() => addCollectionSection("games")}>＋ FAVORITE GAMES</button>
+          <button className="button button-outline add-section" type="button" onClick={() => addCollectionSection("shows")}>＋ FAVORITE SHOWS &amp; ANIME</button>
           {selectedSection && (
             <div className="section-management">
               <button className="text-link" type="button" onClick={duplicateSection}>DUPLICATE PANEL</button>
@@ -590,6 +838,15 @@ function ProfileStudio() {
               <select value={profile.layoutPreset} onChange={(event) => setProfile((current) => ({ ...current, layoutPreset: event.target.value }))}>
                 <option value="scrapbook">SCRAPBOOK</option>
                 <option value="field-notes">FIELD NOTES</option>
+              </select>
+            </label>
+            <label className="preset-control">
+              <span>ARRANGEMENT</span>
+              <select value={profile.layout?.mode ?? "grid"} onChange={(event) => updateProfileLayout("mode", event.target.value)}>
+                <option value="grid">GRID</option>
+                <option value="rows">ROWS</option>
+                <option value="strip">WRAPPED STRIP</option>
+                <option value="scrapbook">SCRAPBOOK GRID</option>
               </select>
             </label>
           </div>
@@ -612,17 +869,40 @@ function ProfileStudio() {
           </div>
           <div className="inspector-scroll">
             <fieldset className="property-group">
+              <legend>PAGE ARRANGEMENT / MOTION</legend>
+              <label className="field-label" htmlFor="layout-columns">GRID COLUMNS</label>
+              <select id="layout-columns" value={profile.layout?.columns ?? 2} onChange={(event) => updateProfileLayout("columns", Number(event.target.value))}>
+                <option value="1">ONE</option><option value="2">TWO</option><option value="3">THREE</option><option value="4">FOUR</option>
+              </select>
+              <label className="field-label" htmlFor="layout-mode">ARRANGEMENT</label>
+              <select id="layout-mode" value={profile.layout?.mode ?? "grid"} onChange={(event) => updateProfileLayout("mode", event.target.value)}>
+                <option value="grid">EDITORIAL GRID</option><option value="rows">HORIZONTAL ROWS</option><option value="strip">WRAPPED STRIP</option><option value="scrapbook">SCRAPBOOK COLLAGE</option>
+              </select>
+              <label className="field-label" htmlFor="layout-gap">PANEL GAP / PX</label>
+              <input id="layout-gap" type="number" min="0" max="48" value={profile.layout?.gap ?? 9} onChange={(event) => updateProfileLayout("gap", Number(event.target.value))} />
+              {[
+                ["entrance", "SUBTLE PANEL ENTRANCE"],
+                ["hover", "PANEL HOVER LIFT"],
+                ["backgroundMotion", "SLOW PAPER GRAIN"]
+              ].map(([key, label]) => (
+                <label className="toggle-control" key={key}>
+                  <input type="checkbox" checked={profile.effects?.[key] ?? (key !== "backgroundMotion")} onChange={(event) => setProfile((current) => ({ ...current, effects: { ...current.effects, [key]: event.target.checked } }))} />
+                  <span>{label}</span>
+                </label>
+              ))}
+              <label className="field-label" htmlFor="effect-intensity">MOTION INTENSITY</label>
+              <select id="effect-intensity" value={profile.effects?.intensity ?? "subtle"} onChange={(event) => setProfile((current) => ({ ...current, effects: { ...current.effects, intensity: event.target.value } }))}>
+                <option value="subtle">SUBTLE</option><option value="expressive">EXPRESSIVE</option>
+              </select>
+            </fieldset>
+
+            <fieldset className="property-group">
               <legend>PROFILE / IDENTITY</legend>
-              <label className="field-label" htmlFor="display-name">DISPLAY NAME</label>
-              <input id="display-name" value={profile.profile.displayName} onChange={(event) => updateProfile("displayName", event.target.value)} maxLength={48} />
-              <label className="field-label" htmlFor="hero-tagline">HERO HEADLINE / TEXT UNDER YOUR NAME</label>
-              <input id="hero-tagline" value={profile.profile.heroTagline ?? "IN THE MARGINS."} onChange={(event) => updateProfile("heroTagline", event.target.value)} maxLength={48} />
-              <label className="field-label" htmlFor="username">USERNAME</label>
-              <div className="input-prefix"><span>@</span><input id="username" value={profile.profile.username} onChange={(event) => updateProfile("username", event.target.value.replace(/[^a-zA-Z0-9_.-]/g, "").slice(0, 24))} maxLength={24} /></div>
-              <label className="field-label" htmlFor="status">STATUS / NOW</label>
-              <input id="status" value={profile.profile.status} onChange={(event) => updateProfile("status", event.target.value)} maxLength={72} />
-              <label className="field-label" htmlFor="introduction">INTRODUCTION</label>
-              <textarea id="introduction" value={profile.profile.introduction} onChange={(event) => updateProfile("introduction", event.target.value)} rows={3} maxLength={240} />
+              <CustomTextControl label="DISPLAY NAME" id="display-name" value={profile.profile.displayName} onChange={(value) => updateProfile("displayName", value)} visible={profile.profileVisibility?.displayName !== false} onVisibilityChange={(value) => setProfileFieldVisibility("displayName", value)} onReset={() => resetProfileField("displayName")} maxLength={48} />
+              <CustomTextControl label="HERO HEADLINE / TEXT UNDER YOUR NAME" id="hero-tagline" value={profile.profile.heroTagline ?? defaultProfile.profile.heroTagline} onChange={(value) => updateProfile("heroTagline", value)} visible={profile.profileVisibility?.heroTagline !== false} onVisibilityChange={(value) => setProfileFieldVisibility("heroTagline", value)} onReset={() => resetProfileField("heroTagline")} maxLength={48} />
+              <CustomTextControl label="USERNAME" id="username" value={profile.profile.username} onChange={(value) => updateProfile("username", value.replace(/[^a-zA-Z0-9_.-]/g, "").slice(0, 24))} visible={profile.profileVisibility?.username !== false} onVisibilityChange={(value) => setProfileFieldVisibility("username", value)} onReset={() => resetProfileField("username")} maxLength={24} />
+              <CustomTextControl label="STATUS / NOW" id="status" value={profile.profile.status} onChange={(value) => updateProfile("status", value)} visible={profile.profileVisibility?.status !== false} onVisibilityChange={(value) => setProfileFieldVisibility("status", value)} onReset={() => resetProfileField("status")} maxLength={72} />
+              <CustomTextControl label="INTRODUCTION" id="introduction" value={profile.profile.introduction} onChange={(value) => updateProfile("introduction", value)} visible={profile.profileVisibility?.introduction !== false} onVisibilityChange={(value) => setProfileFieldVisibility("introduction", value)} onReset={() => resetProfileField("introduction")} multiline maxLength={240} />
               <label className="field-label" htmlFor="hero-image-upload">HERO IMAGE</label>
               <div className="asset-controls">
                 <input
@@ -634,7 +914,54 @@ function ProfileStudio() {
                 />
                 <button className="text-link text-link-danger" type="button" disabled={!profile.media.hero || cloudBusy} onClick={() => removeImage({ type: "hero" }, profile.media.hero)}>REMOVE IMAGE</button>
               </div>
+              <label className="field-label" htmlFor="hero-image-alt">HERO IMAGE DESCRIPTION / ALT TEXT</label>
+              <input id="hero-image-alt" value={profile.media.heroAlt ?? defaultProfile.media.heroAlt} maxLength={180} onChange={(event) => setProfile((current) => ({ ...current, media: { ...current.media, heroAlt: event.target.value } }))} />
+              <button className="text-link" type="button" onClick={() => setProfile((current) => ({ ...current, media: { ...current.media, heroAlt: defaultProfile.media.heroAlt } }))}>RESTORE DESCRIPTION</button>
               <p className="panel-hint">PNG, JPEG, WebP, GIF, or AVIF; maximum 8 MiB. Uploaded images are publicly accessible.</p>
+            </fieldset>
+
+            <fieldset className="property-group">
+              <legend>PUBLIC TEXT / LABELS</legend>
+              {[
+                ["mark", "HEADER GLYPH"],
+                ["brand", "HEADER BRAND"],
+                ["publicBrand", "PUBLIC PAGE BRAND"],
+                ["editorLink", "PUBLIC EDITOR LINK"],
+                ["darkModeLabel", "DARK MODE BUTTON"],
+                ["lightModeLabel", "LIGHT MODE BUTTON"],
+                ["pageMark", "PAGE MARK"],
+                ["heroKicker", "SMALL HERO LABEL"],
+                ["heroImageCaption", "HERO IMAGE CAPTION"],
+                ["heroImageMark", "HERO IMAGE NUMBER"],
+                ["sectionsHeading", "SECTIONS HEADING"],
+                ["sectionCountSuffix", "SECTION COUNT LABEL"],
+                ["sectionDivider", "PANEL NUMBER DIVIDER"],
+                ["ratingLabel", "GAME / SHOW RATING LABEL"],
+                ["externalLinkLabel", "EXTERNAL LINK LABEL"],
+                ["footerLeft", "FOOTER LEFT"],
+                ["footerRight", "FOOTER RIGHT"],
+                ["spotifyDisclaimer", "SPOTIFY NOTE"]
+              ].map(([key, label]) => (
+                <div className="copy-control" key={key}>
+                  <label className="field-label" htmlFor={`copy-${key}`}>{label}</label>
+                  <input
+                    id={`copy-${key}`}
+                    value={profile.copy?.[key] ?? defaultProfile.copy[key] ?? ""}
+                    onChange={(event) => updateProfileCopy(key, event.target.value)}
+                  />
+                  <div className="copy-control-actions">
+                    <label className="toggle-control">
+                      <input
+                        type="checkbox"
+                        checked={profile.copyVisibility?.[key] !== false}
+                        onChange={(event) => setProfile((current) => ({ ...current, copyVisibility: { ...current.copyVisibility, [key]: event.target.checked } }))}
+                      />
+                      <span>SHOW</span>
+                    </label>
+                    <button className="text-link" type="button" onClick={() => resetProfileCopy(key)}>RESTORE DEFAULT</button>
+                  </div>
+                </div>
+              ))}
             </fieldset>
 
             <fieldset className="property-group">
@@ -669,11 +996,102 @@ function ProfileStudio() {
                       </p>
                     </>
                   )}
-                  <label className="field-label" htmlFor="section-title">HEADING</label>
-                  <input id="section-title" value={selectedSection.title} onChange={(event) => updateSelectedSection("title", event.target.value)} maxLength={80} />
-                  <label className="field-label" htmlFor="section-copy">PANEL TEXT</label>
-                  <textarea id="section-copy" value={selectedSection.body} onChange={(event) => updateSelectedSection("body", event.target.value)} rows={4} maxLength={420} />
-                  {selectedSection.kind !== "music" && (
+                  {selectedSection.kind === "shows" && (
+                    <>
+                      <label className="field-label" htmlFor="anime-search">SEARCH ANILIST (PUBLIC ANIME METADATA)</label>
+                      <div className="collection-search">
+                        <input id="anime-search" value={animeSearch} onChange={(event) => setAnimeSearch(event.target.value)} placeholder="Type an anime title…" />
+                        <button className="button button-outline" type="button" disabled={animeSearch.trim().length < 2} onClick={() => setAnimeSearchQuery(animeSearch.trim())}>SEARCH</button>
+                      </div>
+                      {animeSearchStatus && <p className="panel-hint" role="status">{animeSearchStatus}</p>}
+                      {animeResults.length > 0 && (
+                        <ul className="anime-results">
+                          {animeResults.map((result) => (
+                            <li key={result.id}>
+                              <button type="button" onClick={() => selectAniListResult(result)}>
+                                {result.image && <img src={result.image} alt="" />}
+                                <span>{result.title}{result.year ? ` · ${result.year}` : ""}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="panel-hint">Search is optional; you can create a fully manual entry below. Selected metadata is saved in your profile JSON.</p>
+                    </>
+                  )}
+                  {(selectedSection.kind === "games" || selectedSection.kind === "shows") && (
+                    <>
+                      <div className="collection-editor-heading">
+                        <span>COLLECTION ENTRIES / {selectedSection.entries?.length ?? 0}</span>
+                        <button type="button" className="button button-outline" onClick={() => addCollectionEntry(selectedSection.id)}>＋ ADD MANUAL ENTRY</button>
+                      </div>
+                      {(selectedSection.entries ?? []).map((entry, entryIndex) => {
+                        const metadataFields = selectedSection.kind === "games"
+                          ? [["platform", "PLATFORM"], ["year", "RELEASE YEAR"], ["developer", "DEVELOPER / PUBLISHER"], ["genre", "GENRE"], ["rating", "PERSONAL RATING"], ["status", "PLAY STATUS"], ["externalUrl", "OFFICIAL / EXTERNAL URL"]]
+                          : [["mediaType", "MEDIA TYPE"], ["year", "RELEASE YEAR / RANGE"], ["genre", "GENRE"], ["status", "WATCH STATUS"], ["rating", "PERSONAL RATING"], ["externalUrl", "OFFICIAL / EXTERNAL URL"]];
+                        return (
+                          <fieldset className="collection-editor-entry" key={entry.id}>
+                            <legend>{String(entryIndex + 1).padStart(2, "0")} / {entry.title || (selectedSection.kind === "games" ? "GAME" : "SHOW")}</legend>
+                            <div className="collection-entry-actions">
+                              <button type="button" disabled={entryIndex === 0} aria-label="Move entry up" onClick={() => moveCollectionEntry(selectedSection.id, entry.id, -1)}>↑</button>
+                              <button type="button" disabled={entryIndex === (selectedSection.entries?.length ?? 0) - 1} aria-label="Move entry down" onClick={() => moveCollectionEntry(selectedSection.id, entry.id, 1)}>↓</button>
+                              <button type="button" className="text-link text-link-danger" onClick={() => removeCollectionEntry(selectedSection.id, entry.id)}>REMOVE ENTRY</button>
+                            </div>
+                            <label className="toggle-control">
+                              <input type="checkbox" checked={entry.visible !== false} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "visible", event.target.checked)} />
+                              <span>SHOW THIS ENTRY</span>
+                            </label>
+                            <label className="field-label" htmlFor={`collection-title-${entry.id}`}>TITLE</label>
+                            <input id={`collection-title-${entry.id}`} value={entry.title ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "title", event.target.value)} />
+                            <label className="toggle-control">
+                              <input type="checkbox" checked={entry.metadataVisibility?.title !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, "title", event.target.checked)} />
+                              <span>SHOW TITLE</span>
+                            </label>
+                            <label className="field-label" htmlFor={`collection-cover-${entry.id}`}>COVER / POSTER</label>
+                            <input id={`collection-cover-${entry.id}`} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" disabled={cloudBusy} onChange={(event) => uploadImage(event, { type: "entry", sectionId: selectedSection.id, id: entry.id })} />
+                            <label className="toggle-control">
+                              <input type="checkbox" checked={entry.metadataVisibility?.cover !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, "cover", event.target.checked)} />
+                              <span>SHOW COVER / POSTER</span>
+                            </label>
+                            {entry.image && <button type="button" className="text-link text-link-danger" onClick={() => removeImage({ type: "entry", sectionId: selectedSection.id, id: entry.id }, entry.image)}>REMOVE COVER</button>}
+                            <label className="field-label" htmlFor={`collection-note-${entry.id}`}>PERSONAL NOTE</label>
+                            <textarea id={`collection-note-${entry.id}`} rows={2} value={entry.note ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, "note", event.target.value)} />
+                            <label className="toggle-control">
+                              <input type="checkbox" checked={entry.metadataVisibility?.note !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, "note", event.target.checked)} />
+                              <span>SHOW PERSONAL NOTE</span>
+                            </label>
+                            {metadataFields.map(([key, label]) => (
+                              <div className="collection-meta-control" key={key}>
+                                <label className="field-label" htmlFor={`collection-${key}-${entry.id}`}>{label}</label>
+                                {key === "status" ? (
+                                  <select id={`collection-${key}-${entry.id}`} value={entry[key] ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, key, event.target.value)}>
+                                    <option value="">NOT SET</option>
+                                    {(selectedSection.kind === "games"
+                                      ? ["Playing", "Completed", "On Hold", "Want to Play"]
+                                      : ["Watching", "Completed", "On Hold", "Plan to Watch"]).map((status) => <option key={status} value={status}>{status}</option>)}
+                                  </select>
+                                ) : key === "mediaType" ? (
+                                  <select id={`collection-${key}-${entry.id}`} value={entry[key] ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, key, event.target.value)}>
+                                    <option value="">NOT SET</option>{["Anime", "TV Series", "Animated Show", "Movie"].map((type) => <option key={type} value={type}>{type}</option>)}
+                                  </select>
+                                ) : (
+                                  <input id={`collection-${key}-${entry.id}`} value={entry[key] ?? ""} onChange={(event) => updateCollectionEntry(selectedSection.id, entry.id, key, event.target.value)} />
+                                )}
+                                <label className="toggle-control">
+                                  <input type="checkbox" checked={entry.metadataVisibility?.[key] !== false} onChange={(event) => toggleCollectionMetadata(selectedSection.id, entry.id, key, event.target.checked)} />
+                                  <span>SHOW THIS DETAIL</span>
+                                </label>
+                              </div>
+                            ))}
+                          </fieldset>
+                        );
+                      })}
+                    </>
+                  )}
+                  <CustomTextControl label="HEADING" id="section-title" value={selectedSection.title} onChange={(value) => updateSelectedSection("title", value)} visible={selectedSection.copyVisibility?.title !== false} onVisibilityChange={(value) => setSelectedTextVisibility("title", value)} onReset={() => resetSelectedText("title")} maxLength={80} />
+                  <CustomTextControl label="PANEL TEXT" id="section-copy" value={selectedSection.body} onChange={(value) => updateSelectedSection("body", value)} visible={selectedSection.copyVisibility?.body !== false} onVisibilityChange={(value) => setSelectedTextVisibility("body", value)} onReset={() => resetSelectedText("body")} multiline maxLength={420} />
+                  <CustomTextControl label={selectedSection.kind === "music" ? "MUSIC LABEL / SMALL HEADING" : "IMAGE / SECTION CAPTION"} id="section-caption" value={selectedSection.caption} onChange={(value) => updateSelectedSection("caption", value)} visible={selectedSection.copyVisibility?.caption !== false} onVisibilityChange={(value) => setSelectedTextVisibility("caption", value)} onReset={() => resetSelectedText("caption")} maxLength={80} />
+                  {selectedSection.kind !== "music" && selectedSection.kind !== "games" && selectedSection.kind !== "shows" && (
                     <>
                       <label className="field-label" htmlFor="section-image-upload">PANEL IMAGE</label>
                       <div className="asset-controls">
@@ -692,18 +1110,92 @@ function ProfileStudio() {
                   )}
                   {selectedSection.kind === "music" && (
                     <>
-                      <label className="field-label" htmlFor="spotify-label">MUSIC LABEL / SMALL HEADING</label>
-                      <input
-                        id="spotify-label"
-                        value={selectedSection.caption ?? ""}
-                        onChange={(event) => updateSelectedSection("caption", event.target.value)}
-                        maxLength={48}
-                      />
+                      <label className="field-label" htmlFor="spotify-height">PLAYER HEIGHT / PX</label>
+                      <input id="spotify-height" type="number" min="80" max="352" value={selectedSection.layout?.embedHeight ?? 152} onChange={(event) => updateSectionLayout("embedHeight", Number(event.target.value))} />
                     </>
                   )}
                 </>
               ) : <p className="panel-hint">Add a panel to begin editing.</p>}
             </fieldset>
+            {selectedSection && (
+              <fieldset className="property-group">
+                <legend>SECTION LAYOUT / PANEL</legend>
+                <label className="field-label" htmlFor="section-width">WIDTH PRESET</label>
+                <select id="section-width" value={selectedSection.layout?.width ?? "half"} onChange={(event) => updateSectionLayout("width", event.target.value)}>
+                  <option value="full">FULL WIDTH</option><option value="half">HALF WIDTH</option><option value="third">ONE THIRD</option><option value="compact">COMPACT</option><option value="custom">CUSTOM</option>
+                </select>
+                {selectedSection.layout?.width === "custom" && (
+                  <>
+                    <label className="field-label" htmlFor="section-custom-width">CUSTOM WIDTH / %</label>
+                    <input id="section-custom-width" type="number" min="20" max="100" value={selectedSection.layout?.customWidth ?? 50} onChange={(event) => updateSectionLayout("customWidth", Number(event.target.value))} />
+                  </>
+                )}
+                <label className="field-label" htmlFor="section-height">HEIGHT</label>
+                <select id="section-height" value={selectedSection.layout?.height ?? "auto"} onChange={(event) => updateSectionLayout("height", event.target.value)}>
+                  <option value="auto">AUTO</option><option value="short">SHORT</option><option value="tall">TALL</option><option value="custom">CUSTOM</option>
+                </select>
+                {selectedSection.layout?.height === "custom" && (
+                  <>
+                    <label className="field-label" htmlFor="section-custom-height">CUSTOM HEIGHT / PX</label>
+                    <input id="section-custom-height" type="number" min="90" max="900" value={selectedSection.layout?.customHeight ?? 240} onChange={(event) => updateSectionLayout("customHeight", Number(event.target.value))} />
+                  </>
+                )}
+                <label className="field-label" htmlFor="section-align">ALIGNMENT</label>
+                <select id="section-align" value={selectedSection.layout?.align ?? "stretch"} onChange={(event) => updateSectionLayout("align", event.target.value)}>
+                  <option value="stretch">STRETCH</option><option value="start">TOP</option><option value="center">CENTER</option><option value="end">BOTTOM</option>
+                </select>
+                <label className="field-label" htmlFor="section-horizontal-align">HORIZONTAL ALIGNMENT</label>
+                <select id="section-horizontal-align" value={selectedSection.layout?.horizontalAlign ?? "stretch"} onChange={(event) => updateSectionLayout("horizontalAlign", event.target.value)}>
+                  <option value="stretch">STRETCH</option><option value="start">LEFT</option><option value="center">CENTER</option><option value="end">RIGHT</option>
+                </select>
+                <label className="field-label" htmlFor="section-padding">PADDING / PX</label>
+                <input id="section-padding" type="number" min="0" max="48" value={selectedSection.layout?.padding ?? 10} onChange={(event) => updateSectionLayout("padding", Number(event.target.value))} />
+                <label className="field-label" htmlFor="section-background">PANEL BACKGROUND</label>
+                <input id="section-background" type="color" value={selectedSection.layout?.background ?? "#fffefa"} onChange={(event) => updateSectionLayout("background", event.target.value)} />
+                <label className="field-label" htmlFor="section-background-opacity">BACKGROUND MIX / %</label>
+                <input id="section-background-opacity" type="range" min="0" max="100" value={selectedSection.layout?.backgroundOpacity ?? 100} onChange={(event) => updateSectionLayout("backgroundOpacity", Number(event.target.value))} />
+                <label className="field-label" htmlFor="section-texture">PAPER TEXTURE</label>
+                <select id="section-texture" value={selectedSection.layout?.texture ?? "none"} onChange={(event) => updateSectionLayout("texture", event.target.value)}>
+                  <option value="none">NONE</option><option value="halftone">HALFTONE</option><option value="speed-lines">SPEED LINES</option>
+                </select>
+                <label className="field-label" htmlFor="section-background-image">BACKGROUND IMAGE URL (HTTPS)</label>
+                <input id="section-background-image" type="url" value={selectedSection.layout?.backgroundImage ?? ""} onChange={(event) => updateSectionLayout("backgroundImage", event.target.value)} placeholder="https://…" />
+                <label className="field-label" htmlFor="section-background-upload">OR UPLOAD A BACKGROUND IMAGE</label>
+                <div className="asset-controls">
+                  <input id="section-background-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" disabled={cloudBusy} onChange={(event) => uploadImage(event, { type: "sectionBackground", id: selectedSection.id })} />
+                  <button className="text-link text-link-danger" type="button" disabled={!selectedSection.layout?.backgroundImage || cloudBusy} onClick={() => removeImage({ type: "sectionBackground", id: selectedSection.id }, selectedSection.layout.backgroundImage)}>REMOVE BACKGROUND</button>
+                </div>
+                <label className="field-label" htmlFor="section-border">BORDER STYLE</label>
+                <select id="section-border" value={selectedSection.layout?.borderStyle ?? "solid"} onChange={(event) => updateSectionLayout("borderStyle", event.target.value)}>
+                  <option value="solid">SOLID INK</option><option value="dashed">HAND-DRAWN / DASHED</option><option value="dotted">DOTTED</option><option value="double">DOUBLE</option>
+                </select>
+                <label className="field-label" htmlFor="section-border-width">BORDER WIDTH / PX</label>
+                <input id="section-border-width" type="number" min="0" max="8" value={selectedSection.layout?.borderWidth ?? 2} onChange={(event) => updateSectionLayout("borderWidth", Number(event.target.value))} />
+                <label className="field-label" htmlFor="section-radius">CORNER RADIUS / PX</label>
+                <input id="section-radius" type="number" min="0" max="32" value={selectedSection.layout?.radius ?? 0} onChange={(event) => updateSectionLayout("radius", Number(event.target.value))} />
+                <label className="toggle-control">
+                  <input type="checkbox" checked={selectedSection.layout?.shadow === true} onChange={(event) => updateSectionLayout("shadow", event.target.checked)} />
+                  <span>INK DROP SHADOW</span>
+                </label>
+                {selectedSection.image && (
+                  <>
+                    <label className="field-label" htmlFor="section-image-height">IMAGE HEIGHT / PX</label>
+                    <input id="section-image-height" type="number" min="70" max="700" value={selectedSection.layout?.imageHeight ?? 150} onChange={(event) => updateSectionLayout("imageHeight", Number(event.target.value))} />
+                    <label className="field-label" htmlFor="section-image-fit">IMAGE CROP</label>
+                    <select id="section-image-fit" value={selectedSection.layout?.imageFit ?? "cover"} onChange={(event) => updateSectionLayout("imageFit", event.target.value)}>
+                      <option value="cover">FILL PANEL</option><option value="contain">SHOW WHOLE IMAGE</option>
+                    </select>
+                    <label className="field-label" htmlFor="section-image-position">IMAGE POSITION</label>
+                    <select id="section-image-position" value={selectedSection.layout?.imagePosition ?? "center"} onChange={(event) => updateSectionLayout("imagePosition", event.target.value)}>
+                      <option value="center">CENTER</option><option value="top">TOP</option><option value="bottom">BOTTOM</option><option value="left">LEFT</option><option value="right">RIGHT</option>
+                    </select>
+                    <label className="field-label" htmlFor="section-image-rotation">IMAGE ROTATION</label>
+                    <input id="section-image-rotation" type="number" min="-20" max="20" value={selectedSection.layout?.imageRotation ?? 0} onChange={(event) => updateSectionLayout("imageRotation", Number(event.target.value))} />
+                  </>
+                )}
+                <button className="text-link" type="button" onClick={() => updateSelectedSection("layout", { width: ["music", "games", "shows"].includes(selectedSection.kind) ? "full" : "half", height: "auto", align: "stretch", horizontalAlign: "stretch", padding: 10, background: "", backgroundOpacity: 100, backgroundImage: "", texture: "none", borderStyle: "solid", borderWidth: 2, radius: 0, shadow: false, imageHeight: 150, imageFit: "cover", imagePosition: "center", imageRotation: 0, embedHeight: 152 })}>RESET PANEL LAYOUT</button>
+              </fieldset>
+            )}
             {assetStatus && <p className="asset-status" role="status">{assetStatus}</p>}
           </div>
           <div className="inspector-actions">
@@ -749,6 +1241,39 @@ function ColorControl({ label, id, value, onChange }) {
       <span className="color-control-value">{value.toUpperCase()}</span>
       <input id={id} type="color" value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
+  );
+}
+
+function CustomTextControl({
+  label,
+  id,
+  value,
+  onChange,
+  visible,
+  onVisibilityChange,
+  onReset,
+  multiline = false,
+  maxLength
+}) {
+  const Control = multiline ? "textarea" : "input";
+  return (
+    <div className="custom-text-control">
+      <label className="field-label" htmlFor={id}>{label}</label>
+      <Control
+        id={id}
+        value={value ?? ""}
+        onChange={(event) => onChange(event.target.value)}
+        maxLength={maxLength}
+        rows={multiline ? 3 : undefined}
+      />
+      <div className="copy-control-actions">
+        <label className="toggle-control">
+          <input type="checkbox" checked={visible} onChange={(event) => onVisibilityChange(event.target.checked)} />
+          <span>SHOW</span>
+        </label>
+        <button className="text-link" type="button" onClick={onReset}>RESTORE DEFAULT</button>
+      </div>
+    </div>
   );
 }
 

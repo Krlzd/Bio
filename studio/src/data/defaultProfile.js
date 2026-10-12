@@ -16,6 +16,37 @@ export const defaultProfile = {
     status: "reading the next pass",
     introduction: "Attacking midfielder. One pass ahead, always."
   },
+  copy: {
+    mark: "冴",
+    brand: "AJAX'S BIO",
+    publicBrand: "AJAX'S BIO",
+    editorLink: "OPEN THE EDITOR",
+    darkModeLabel: "DARK INK",
+    lightModeLabel: "LIGHT INK",
+    pageMark: "№ 10",
+    heroKicker: "CHARACTER FILE / 010",
+    heroImageCaption: "THE PRODIGY / JAPAN U-20",
+    heroImageMark: "10",
+    sectionsHeading: "SELECTED PAGES",
+    sectionCountSuffix: "PANELS",
+    sectionDivider: "/",
+    ratingLabel: "RATING",
+    externalLinkLabel: "OFFICIAL PAGE",
+    footerLeft: "UNOFFICIAL CHARACTER SCRAPBOOK",
+    footerRight: "TURN THE PAGE ↘",
+    spotifyDisclaimer: "PLAYBACK IS PROVIDED BY SPOTIFY. NO LOCAL PLAYER OR PLAYBACK PROGRESS IS SIMULATED."
+  },
+  effects: {
+    entrance: true,
+    hover: true,
+    backgroundMotion: false,
+    intensity: "subtle"
+  },
+  layout: {
+    mode: "grid",
+    columns: 2,
+    gap: 9
+  },
   theme: {
     mode: "day",
     paper: "#f2f0e8",
@@ -74,6 +105,7 @@ export const defaultProfile = {
       caption: "SIDE B / LISTENING NOTES",
       spotifyUrl: "",
       spotifyMetadata: null,
+      layout: { width: "full", height: "auto" },
       visible: true
     },
     {
@@ -87,8 +119,13 @@ export const defaultProfile = {
       visible: true
     }
   ],
+  collections: {
+    games: [],
+    shows: []
+  },
   media: {
-    hero: heroCutout
+    hero: heroCutout,
+    heroAlt: "Transparent black-and-white manga cutout of Sae Itoshi"
   }
 };
 

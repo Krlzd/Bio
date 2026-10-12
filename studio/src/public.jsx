@@ -16,6 +16,12 @@ function PublicPreview() {
     supabaseConfigurationError ? "Supabase is not configured; showing this browser's local preview." : "Loading the published profile…"
   );
   const [isDark, setIsDark] = useState(false);
+  const publicBrand = profile?.copy?.publicBrand ?? "AJAX'S BIO";
+  const editorLink = profile?.copy?.editorLink ?? "OPEN THE EDITOR";
+  const modeLabel = isDark
+    ? profile?.copy?.lightModeLabel ?? "LIGHT INK"
+    : profile?.copy?.darkModeLabel ?? "DARK INK";
+  const isCopyVisible = (key) => profile?.copyVisibility?.[key] !== false;
 
   useEffect(() => {
     if (!supabase) {
@@ -61,23 +67,23 @@ function PublicPreview() {
   return (
     <main className="public-preview-page">
       <div className="public-preview-notice">
-        <span>AJAX&apos;S BIO</span>
+        {isCopyVisible("publicBrand") && publicBrand && <span>{publicBrand}</span>}
         <div className="public-preview-actions">
           <button
             className="preview-theme-toggle"
             type="button"
-            aria-label={`Preview ${isDark ? "light" : "dark"} mode`}
+            aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
             aria-pressed={isDark}
             onClick={() => setIsDark((dark) => !dark)}
           >
-            {isDark ? "LIGHT INK" : "DARK INK"}
+            {isCopyVisible(isDark ? "lightModeLabel" : "darkModeLabel") && modeLabel ? modeLabel : "◐"}
           </button>
-          <a href={`${import.meta.env.BASE_URL}admin/`}>OPEN THE EDITOR <span aria-hidden="true">↗</span></a>
+          {isCopyVisible("editorLink") && editorLink && <a href={`${import.meta.env.BASE_URL}admin/`}>{editorLink} <span aria-hidden="true">↗</span></a>}
         </div>
       </div>
       {profileNotice && <p className="public-profile-notice" role="status">{profileNotice}</p>}
       {profile
-        ? <ProfilePreview profile={profile} isDark={isDark} enableSpotifyPlayback />
+        ? <ProfilePreview profile={profile} isDark={isDark} />
         : <section className="public-empty-state" aria-live="polite"><h1>{profileNotice === "Loading the published profile…" ? "LOADING THE PAGE." : "NO PUBLISHED PROFILE."}</h1><p>{profileNotice === "Loading the published profile…" ? "Checking the published scrapbook…" : "The scrapbook will appear here after its owner publishes a profile."}</p></section>}
     </main>
   );
